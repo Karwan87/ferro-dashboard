@@ -23,8 +23,9 @@
 <div id="loginGate">
   <div class="login-card">
     <div class="login-brand">FERRO</div>
-    <p class="login-sub">Panel Sprzedaży — dostęp chroniony hasłem</p>
-    <input type="password" class="login-input" id="pwInput" placeholder="Hasło dostępu" autofocus>
+    <p class="login-sub">Panel Sprzedaży — dostęp chroniony loginem i hasłem</p>
+    <input type="text" class="login-input" id="userInput" placeholder="Login" autofocus autocomplete="username">
+    <input type="password" class="login-input" id="pwInput" placeholder="Hasło dostępu" autocomplete="current-password">
     <button class="login-btn" onclick="checkPassword()">Wejdź</button>
     <div class="login-error" id="pwError"></div>
   </div>
@@ -37,6 +38,7 @@
     <div class="brand">FERRO <span>·</span> Panel Sprzedaży</div>
     <div class="status-bar">
       <span class="live-flag loading" id="liveFlag"><span class="live-dot"></span><span id="liveFlagText">Ładowanie…</span></span>
+      <span class="last-updated" id="loggedInAs"></span>
       <button class="refresh-btn" onclick="loadData()">↻ Odśwież</button>
       <button class="refresh-btn" onclick="logout()">⎋ Wyloguj</button>
       <span class="last-updated" id="lastUpdated"></span>

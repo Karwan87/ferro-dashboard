@@ -6,21 +6,23 @@ import { WORKER_BASE } from './config.js';
    trafia do publicznego repo). Frontend tylko przechowuje token. */
 
 export async function checkPassword(){
-  const input = document.getElementById('pwInput').value;
+  const username = document.getElementById('userInput').value.trim();
+  const password = document.getElementById('pwInput').value;
   const errBox = document.getElementById('pwError');
   try{
     const res = await fetch(`${WORKER_BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: input }),
+      body: JSON.stringify({ username, password }),
     });
     if(!res.ok) throw new Error('bad credentials');
     const { token, exp } = await res.json();
     sessionStorage.setItem('ferro_token', token);
     sessionStorage.setItem('ferro_token_exp', String(exp));
+    sessionStorage.setItem('ferro_username', username);
     unlockApp();
   } catch(e){
-    errBox.textContent = 'Błędne hasło, spróbuj ponownie.';
+    errBox.textContent = 'Błędny login lub hasło, spróbuj ponownie.';
     document.getElementById('pwInput').value = '';
   }
 }
@@ -28,6 +30,7 @@ export async function checkPassword(){
 export function unlockApp(){
   document.getElementById('loginGate').classList.add('hidden');
   document.getElementById('app-root').classList.add('unlocked');
+  document.getElementById('loggedInAs').textContent = sessionStorage.getItem('ferro_username') || '';
   loadData();
 }
 
@@ -38,6 +41,7 @@ function hasValidToken(){
 }
 
 export function initAuth(){
+  document.getElementById('userInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('pwInput').focus(); });
   document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') checkPassword(); });
   if(hasValidToken()){
     unlockApp();
@@ -47,9 +51,12 @@ export function initAuth(){
 export function logout(){
   sessionStorage.removeItem('ferro_token');
   sessionStorage.removeItem('ferro_token_exp');
+  sessionStorage.removeItem('ferro_username');
   document.getElementById('app-root').classList.remove('unlocked');
+  document.getElementById('loggedInAs').textContent = '';
+  document.getElementById('userInput').value = '';
   document.getElementById('pwInput').value = '';
   document.getElementById('pwError').textContent = '';
   document.getElementById('loginGate').classList.remove('hidden');
-  document.getElementById('pwInput').focus();
+  document.getElementById('userInput').focus();
 }
