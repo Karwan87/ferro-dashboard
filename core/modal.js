@@ -1,5 +1,6 @@
 import { products } from './data.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from './format.js';
+import { pushModalState, requestModalClose } from './router.js';
 
 export function openModal(id, extended, extraHtml){
   const p = products.find(x=>x.id===id);
@@ -34,10 +35,11 @@ export function openModal(id, extended, extraHtml){
   // zostawała z poprzedniego otwarcia modala z innego miejsca.
   document.getElementById('modalExtra').innerHTML = extraHtml || '';
   document.getElementById('overlay').classList.add('active');
+  pushModalState();
 }
 
 export function closeModal(){
-  document.getElementById('overlay').classList.remove('active');
+  requestModalClose();
 }
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });

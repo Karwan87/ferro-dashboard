@@ -31,7 +31,28 @@ export function goBack(){
   if(stack.length > 1) history.back();
 }
 
+/* Modal (core/modal.js, customers.js) dokłada własny wpis do historii przy
+   otwarciu, żeby przycisk/gest "wstecz" na telefonie najpierw zamykał modal,
+   a dopiero drugie cofnięcie zmieniało ekran — inaczej modal zostawał otwarty
+   na nowym ekranie pod spodem. */
+export function pushModalState(){
+  history.pushState({ modal: true }, '');
+}
+
+export function requestModalClose(){
+  if(history.state && history.state.modal){
+    history.back();
+  } else {
+    document.querySelectorAll('.overlay.active').forEach(o=>o.classList.remove('active'));
+  }
+}
+
 window.addEventListener('popstate', () => {
+  const openOverlay = document.querySelector('.overlay.active');
+  if(openOverlay){
+    openOverlay.classList.remove('active');
+    return;
+  }
   if(stack.length > 1){
     stack.pop();
     render();

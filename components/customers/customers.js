@@ -1,4 +1,4 @@
-import { navigateTo } from '../../core/router.js';
+import { navigateTo, pushModalState, requestModalClose } from '../../core/router.js';
 import { loadCustomersData } from '../../core/customersData.js';
 import { fmtPLN } from '../../core/format.js';
 
@@ -245,10 +245,11 @@ export function openCustomerModal(index){
     <div><div class="modal-stat-label">${COLUMN_DEFS[c.key].label}</div><div class="modal-stat-val">${cellHtml(c.key, r)}</div></div>
   `).join('');
   document.getElementById('custOverlay').classList.add('active');
+  pushModalState();
 }
 
 export function closeCustomerModal(){
-  document.getElementById('custOverlay').classList.remove('active');
+  requestModalClose();
 }
 
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeCustomerModal(); });
