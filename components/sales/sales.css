@@ -1,0 +1,30 @@
+/* ---------- LEVEL 2: PERIOD PICKER ---------- */
+.pill-row{display:flex;flex-wrap:wrap;gap:10px;}
+.pill{
+  background:var(--paper);color:var(--ink);border:none;border-radius:9px;
+  padding:16px 20px;font-family:'Inter',sans-serif;font-weight:600;font-size:14.5px;
+  cursor:pointer;transition:.15s ease;min-width:118px;text-align:left;
+}
+.pill:hover{background:var(--gold);transform:translateY(-2px);}
+.pill .pill-sub{display:block;font-weight:400;font-size:11px;color:#6B6670;margin-top:3px;}
+.pill:hover .pill-sub{color:#3a2e00;}
+.pill.warn{background:transparent;border:1px solid var(--rust);color:var(--rust);}
+.pill.warn:hover{background:var(--rust);color:var(--paper);}
+.pill.warn .pill-sub{color:#c98676;}
+.pill.warn:hover .pill-sub{color:var(--paper);}
+
+/* ---------- LEVEL 3: TABLE — odznaka % zwrotów (specyficzna dla widoków sprzedaży) ---------- */
+.ret-badge{
+  font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:20px;
+}
+.ret-ok{background:#E4EEE6;color:var(--sage);}
+.ret-mid{background:#FBF0DC;color:#8a6a12;}
+.ret-bad{background:#F7E4DE;color:var(--rust);}
+
+/* Odznaki "Flagi" (widok Trend sprzedaży) — nowość / wysokie zwroty. */
+.flag-badge{
+  display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;
+  padding:2px 7px;border-radius:20px;white-space:nowrap;
+}
+.flag-new{background:#F4EAC9;color:#8a6a12;}
+.flag-warn{background:#F7E4DE;color:var(--rust);}

@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ferro · Panel Sprzedaży</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="assets/styles/base.css">
+<link rel="stylesheet" href="assets/styles/table.css">
+<link rel="stylesheet" href="components/sales/sales.css">
+<link rel="stylesheet" href="components/customers/customers.css">
+<link rel="stylesheet" href="components/returns/returns.css">
+<link rel="stylesheet" href="components/alerts/alerts.css">
+<link rel="stylesheet" href="components/finance/finance.css">
+<link rel="stylesheet" href="components/stock/stock.css">
+<link rel="stylesheet" href="components/suppliers/suppliers.css">
+<link rel="stylesheet" href="components/reorder/reorder.css">
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="login-card">
+    <div class="login-brand">FERRO</div>
+    <p class="login-sub">Panel Sprzedaży — dostęp chroniony hasłem</p>
+    <input type="password" class="login-input" id="pwInput" placeholder="Hasło dostępu" autofocus>
+    <button class="login-btn" onclick="checkPassword()">Wejdź</button>
+    <div class="login-error" id="pwError"></div>
+  </div>
+</div>
+
+<div id="app-root">
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">FERRO <span>·</span> Panel Sprzedaży</div>
+    <div class="status-bar">
+      <span class="live-flag loading" id="liveFlag"><span class="live-dot"></span><span id="liveFlagText">Ładowanie…</span></span>
+      <button class="refresh-btn" onclick="loadData()">↻ Odśwież</button>
+      <button class="refresh-btn" onclick="logout()">⎋ Wyloguj</button>
+      <span class="last-updated" id="lastUpdated"></span>
+    </div>
+  </div>
+  <p class="subtitle">Gotowe widoki sprzedażowe — bez filtrów, bez ustawień. Wybierz co chcesz zobaczyć.</p>
+  <div id="errorSlot"></div>
+
+  <div class="crumbrow">
+    <button class="back-btn" id="backBtn" onclick="goBack()">← Wróć</button>
+    <div class="crumb-title" id="crumbTitle"></div>
+  </div>
+
+  <!-- SCREEN 1: HUB -->
+  <div class="screen active" id="screen-home">
+    <div class="group-label">Sprzedaż i klienci</div>
+    <div class="hub-grid">
+      <div class="tile" onclick="openCategory()">
+        <span class="tile-icon">📈</span>
+        <p class="tile-name">Dane sprzedażowe</p>
+        <p class="tile-desc">Najlepiej i najsłabiej sprzedające się produkty w wybranym okresie.</p>
+      </div>
+      <div class="tile" onclick="openCustomersHub()">
+        <span class="tile-icon">👥</span>
+        <p class="tile-name">Klienci</p>
+        <p class="tile-desc">Rankingi i segmentacja klientów wg roku.</p>
+      </div>
+      <div class="tile" onclick="openReturnsHub()">
+        <span class="tile-icon">↩️</span>
+        <p class="tile-name">Zwroty</p>
+        <p class="tile-desc">Analiza zwrotów per produkt i dostawca.</p>
+      </div>
+      <div class="tile" onclick="openAlertsHub()">
+        <span class="tile-icon">🔔</span>
+        <p class="tile-name">Alerty</p>
+        <p class="tile-desc">Najczęściej zgłaszane produkty w wybranym okresie.</p>
+      </div>
+    </div>
+
+    <div class="group-label">Magazyn i zaopatrzenie</div>
+    <div class="hub-grid">
+      <div class="tile" onclick="openStockHub()">
+        <span class="tile-icon">📦</span>
+        <p class="tile-name">Stany magazynowe</p>
+        <p class="tile-desc">Wartość zapasów, ilość sztuk i historia stanów.</p>
+      </div>
+      <div class="tile" onclick="openSuppliersHub()">
+        <span class="tile-icon">🏭</span>
+        <p class="tile-name">Dostawcy</p>
+        <p class="tile-desc">Rankingi wartości, sprzedaży, zwrotów i marży wg dostawcy.</p>
+      </div>
+      <div class="tile" onclick="openReorderHub()">
+        <span class="tile-icon">🧾</span>
+        <p class="tile-name">Do zamówienia / braki</p>
+        <p class="tile-desc">Produkty oznaczone do domówienia, wg priorytetu zgłoszeń.</p>
+      </div>
+    </div>
+
+    <div class="group-label">Finanse</div>
+    <div class="hub-grid">
+      <div class="tile" onclick="openFinanceHub()">
+        <span class="tile-icon">💹</span>
+        <p class="tile-name">Finanse</p>
+        <p class="tile-desc">Sprzedaż, zysk i marża w wybranym okresie.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: PERIOD PICKER -->
+  <div class="screen" id="screen-category">
+    <div class="group-label">Najlepsza sprzedaż</div>
+    <div class="pill-row">
+      <button class="pill" onclick="openView('best7')">7 dni<span class="pill-sub">ostatni tydzień</span></button>
+      <button class="pill" onclick="openView('best14')">14 dni<span class="pill-sub">2 tygodnie</span></button>
+      <button class="pill" onclick="openView('best21')">21 dni<span class="pill-sub">3 tygodnie</span></button>
+      <button class="pill" onclick="openView('best28')">28 dni<span class="pill-sub">4 tygodnie</span></button>
+      <button class="pill" onclick="openView('best30')">30 dni<span class="pill-sub">pełny miesiąc</span></button>
+    </div>
+    <div class="group-label">Słaba sprzedaż</div>
+    <div class="pill-row">
+      <button class="pill warn" onclick="openView('noSale')">Brak sprzedaży<span class="pill-sub">produkty dostępne, 0 sprzedaży w 30 dni</span></button>
+      <button class="pill warn" onclick="openView('lowSale')">Niska sprzedaż<span class="pill-sub">poniżej 10 szt. w 30 dniach</span></button>
+    </div>
+    <div class="group-label">Zwroty</div>
+    <div class="pill-row">
+      <button class="pill warn" onclick="openView('highRet')">Największe zwroty<span class="pill-sub">powyżej 30% zwrotów, min. 4 szt. sprzedane</span></button>
+    </div>
+    <div class="group-label">Rentowność</div>
+    <div class="pill-row">
+      <button class="pill" onclick="openView('margin')">Ranking rentowności<span class="pill-sub">marża na sztukę, produkty dostępne na stanie</span></button>
+    </div>
+    <div class="group-label">Trend sprzedaży</div>
+    <div class="pill-row">
+      <button class="pill" onclick="openView('trendUp')">Rosnące<span class="pill-sub">trend wzrostowy, 30 dni</span></button>
+      <button class="pill" onclick="openView('trendFlat')">Stagnacja<span class="pill-sub">trend płaski, 30 dni</span></button>
+      <button class="pill warn" onclick="openView('trendDown')">Spadkowe<span class="pill-sub">trend spadkowy, 30 dni</span></button>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: TABLE -->
+  <div class="screen" id="screen-table">
+    <div class="table-meta">
+      <p id="tableInfo"></p>
+      <p>Kliknij nagłówek kolumny, by zmienić sortowanie</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="tableHeadRow"></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: KLIENCI — WYBÓR OKRESU (lata + ruchome okna dni) -->
+  <div class="screen" id="screen-customers-years">
+    <div class="hub-grid">
+      <div class="tile" onclick="openCustomersYear(2026)">
+        <span class="tile-icon">📅</span>
+        <p class="tile-name">2026</p>
+        <p class="tile-desc">Rankingi i segmentacja klientów za bieżący rok.</p>
+      </div>
+      <div class="tile disabled">
+        <span class="tile-soon">wkrótce</span>
+        <span class="tile-icon">📅</span>
+        <p class="tile-name">2027</p>
+        <p class="tile-desc">Dane za ten rok zostaną udostępnione po jego zakończeniu.</p>
+      </div>
+      <div class="tile" onclick="openCustomersRolling(90)">
+        <span class="tile-icon">⏳</span>
+        <p class="tile-name">Ostatnie 90 dni</p>
+        <p class="tile-desc">Rankingi liczone od dzisiaj wstecz, niezależnie od roku.</p>
+      </div>
+      <div class="tile" onclick="openCustomersRolling(180)">
+        <span class="tile-icon">⏳</span>
+        <p class="tile-name">Ostatnie 180 dni</p>
+        <p class="tile-desc">Rankingi liczone od dzisiaj wstecz, niezależnie od roku.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 5: KLIENCI — WYBÓR RAPORTU -->
+  <div class="screen" id="screen-customers-category">
+    <div class="hub-grid">
+      <div class="tile" onclick="openCustomersView('topGross')">
+        <span class="tile-icon">💰</span>
+        <p class="tile-name">Najbardziej dochodowi klienci</p>
+        <p class="tile-desc">Pełne zestawienie, bez dodatkowych warunków.</p>
+      </div>
+      <div class="tile" onclick="openCustomersView('topNet')">
+        <span class="tile-icon">📊</span>
+        <p class="tile-name">Dochodowość netto klientów</p>
+        <p class="tile-desc">Marża pomniejszona o wartość zwrotów.</p>
+      </div>
+      <div class="tile" onclick="openCustomersView('best')">
+        <span class="tile-icon">⭐</span>
+        <p class="tile-name">Najlepsi klienci</p>
+        <p class="tile-desc">Min. 5 zamówień w roku, zwroty do 10%.</p>
+      </div>
+      <div class="tile" onclick="openCustomersView('worst')">
+        <span class="tile-icon">⚠️</span>
+        <p class="tile-name">Klienci z najwyższym wskaźnikiem zwrotów</p>
+        <p class="tile-desc">Min. 5 zamówień w roku.</p>
+      </div>
+      <div class="tile" onclick="openCustomersView('mostActive')">
+        <span class="tile-icon">🔁</span>
+        <p class="tile-name">Najaktywniejsi klienci</p>
+        <p class="tile-desc">Min. 5 zamówień w roku.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 6: KLIENCI — TABELA RAPORTU -->
+  <div class="screen" id="screen-customers-table">
+    <div class="table-meta">
+      <p id="custTableInfo"></p>
+      <p>Kliknij nagłówek kolumny, by zmienić sortowanie</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="custTableHeadRow"></tr>
+        </thead>
+        <tbody id="custTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN 7: ZWROTY — WYBÓR OKRESU -->
+  <div class="screen" id="screen-returns-periods">
+    <div class="hub-grid">
+      <div class="tile" onclick="openReturnsPeriod('d30')">
+        <span class="tile-icon">⏳</span>
+        <p class="tile-name">Ostatnie 30 dni</p>
+        <p class="tile-desc">Zwroty liczone od dzisiaj wstecz.</p>
+      </div>
+      <div class="tile" onclick="openReturnsPeriod('d60')">
+        <span class="tile-icon">⏳</span>
+        <p class="tile-name">Ostatnie 60 dni</p>
+        <p class="tile-desc">Zwroty liczone od dzisiaj wstecz.</p>
+      </div>
+      <div class="tile" onclick="openReturnsPeriod('d90')">
+        <span class="tile-icon">⏳</span>
+        <p class="tile-name">Ostatnie 90 dni</p>
+        <p class="tile-desc">Zwroty liczone od dzisiaj wstecz.</p>
+      </div>
+      <div class="tile" onclick="openReturnsPeriod('y2026')">
+        <span class="tile-icon">📅</span>
+        <p class="tile-name">2026</p>
+        <p class="tile-desc">Zwroty za cały bieżący rok.</p>
+      </div>
+      <div class="tile" onclick="openReturnsMonths()">
+        <span class="tile-icon">🗓️</span>
+        <p class="tile-name">Miesiące 2026</p>
+        <p class="tile-desc">Zwroty rozbite na poszczególne miesiące roku.</p>
+      </div>
+      <div class="tile" onclick="openReturnsSettlement()">
+        <span class="tile-icon">💳</span>
+        <p class="tile-name">Zwroty do rozliczenia</p>
+        <p class="tile-desc">Suma zwrotów środków należnych od dzisiaj.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 7b: ZWROTY — WYBÓR MIESIĄCA (wewnątrz "Miesiące 2026") -->
+  <div class="screen" id="screen-returns-months">
+    <div class="hub-grid" id="returnsMonthsGrid"></div>
+  </div>
+
+  <!-- SCREEN 8: ZWROTY — WYBÓR RAPORTU (wspólny dla 5 okresów powyżej) -->
+  <div class="screen" id="screen-returns-category">
+    <div class="hub-grid">
+      <div class="tile" onclick="openReturnsProducts()">
+        <span class="tile-icon">📦</span>
+        <p class="tile-name">Najczęściej zwracany produkt</p>
+        <p class="tile-desc">Ranking produktów wg liczby zwróconych sztuk.</p>
+      </div>
+      <div class="tile" onclick="openReturnsSuppliers()">
+        <span class="tile-icon">🏭</span>
+        <p class="tile-name">Dostawca z największym % zwrotów</p>
+        <p class="tile-desc">Ranking dostawców wg udziału zwrotów w sprzedaży.</p>
+      </div>
+      <div class="tile" onclick="openReturnsIndicator()">
+        <span class="tile-icon">📊</span>
+        <p class="tile-name">Wskaźnik % zwrotów</p>
+        <p class="tile-desc">Sprzedaż vs zwroty dla całego sklepu w tym okresie.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 9: ZWROTY — TABELA RAPORTU (produkt / dostawca) -->
+  <div class="screen" id="screen-returns-table">
+    <div class="table-meta">
+      <p id="retTableInfo"></p>
+      <p>Kliknij nagłówek kolumny, by zmienić sortowanie</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="retTableHeadRow"></tr>
+        </thead>
+        <tbody id="retTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN 10: ZWROTY — WSKAŹNIK % (sprzedaż vs zwroty) -->
+  <div class="screen" id="screen-returns-indicator">
+    <div class="stat-card">
+      <div class="stat-hero" id="retIndicatorPct"></div>
+      <div class="stat-hero-label">wskaźnik zwrotów</div>
+      <div class="modal-grid" id="retIndicatorGrid"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN 11: ZWROTY — DO ROZLICZENIA -->
+  <div class="screen" id="screen-returns-settlement">
+    <div class="stat-card">
+      <div class="stat-hero" id="settleTotalValue"></div>
+      <div class="stat-hero-label">do rozliczenia od dzisiaj</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Zwrot środków do dnia</th><th>Kwota</th></tr></thead>
+        <tbody id="settleTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN 12: ALERTY — WYBÓR OKRESU -->
+  <div class="screen" id="screen-alerts-periods">
+    <div class="hub-grid">
+      <div class="tile" onclick="openAlertsPeriod('d1')">
+        <span class="tile-icon">🔔</span>
+        <p class="tile-name">Ostatniego dnia (wczoraj)</p>
+        <p class="tile-desc">Zgłoszenia z ostatniego w pełni zamkniętego dnia.</p>
+      </div>
+      <div class="tile" onclick="openAlertsPeriod('d3')">
+        <span class="tile-icon">🔔</span>
+        <p class="tile-name">Ostatnie 3 dni</p>
+        <p class="tile-desc">Zgłoszenia liczone od wczoraj wstecz.</p>
+      </div>
+      <div class="tile" onclick="openAlertsPeriod('d7')">
+        <span class="tile-icon">🔔</span>
+        <p class="tile-name">Ostatnie 7 dni</p>
+        <p class="tile-desc">Zgłoszenia liczone od wczoraj wstecz.</p>
+      </div>
+      <div class="tile" onclick="openAlertsPeriod('d14')">
+        <span class="tile-icon">🔔</span>
+        <p class="tile-name">Ostatnie 14 dni</p>
+        <p class="tile-desc">Zgłoszenia liczone od wczoraj wstecz.</p>
+      </div>
+      <div class="tile" onclick="openAlertsPeriod('d30')">
+        <span class="tile-icon">🔔</span>
+        <p class="tile-name">Ostatnie 30 dni</p>
+        <p class="tile-desc">Zgłoszenia liczone od wczoraj wstecz.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 13: ALERTY — RAPORT (statystyka + lista produktów) -->
+  <div class="screen" id="screen-alerts-report">
+    <div class="stat-card">
+      <div class="stat-hero" id="alertsTotalValue"></div>
+      <div class="stat-hero-label">zgłoszeń w tym okresie</div>
+    </div>
+
+    <div class="alerts-filter-row">
+      <label for="alertsSupplierFilter">Filtruj wg dostawcy</label>
+      <select class="alerts-supplier-select" id="alertsSupplierFilter" onchange="filterAlertsBySupplier()">
+        <option value="all">Wszyscy dostawcy</option>
+      </select>
+    </div>
+
+    <div class="table-meta">
+      <p id="alertsTableInfo"></p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="rank sticky-col"></th><th class="identity-col sticky-col">Produkt</th><th>Dostawca</th><th>Liczba zgłoszeń</th></tr></thead>
+        <tbody id="alertsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN: DOSTAWCY — WYBÓR RAPORTU -->
+  <div class="screen" id="screen-suppliers-category">
+    <div class="hub-grid">
+      <div class="tile" onclick="openSuppliersRanking('stockValue')">
+        <span class="tile-icon">💰</span>
+        <p class="tile-name">Wartość zamrożonego kapitału</p>
+        <p class="tile-desc">Wartość zapasów po cenie zakupu, wg dostawcy.</p>
+      </div>
+      <div class="tile" onclick="openSuppliersRanking('sales30')">
+        <span class="tile-icon">📈</span>
+        <p class="tile-name">Sprzedaż 30 dni</p>
+        <p class="tile-desc">Suma sprzedanych sztuk w ostatnich 30 dniach, wg dostawcy.</p>
+      </div>
+      <div class="tile" onclick="openSuppliersRanking('returns')">
+        <span class="tile-icon">↩️</span>
+        <p class="tile-name">Wskaźnik zwrotów</p>
+        <p class="tile-desc">% zwrotów w ostatnich 30 dniach, wg dostawcy.</p>
+      </div>
+      <div class="tile" onclick="openSuppliersRanking('margin')">
+        <span class="tile-icon">🧮</span>
+        <p class="tile-name">Marża</p>
+        <p class="tile-desc">Średnia marża na sztukę, wg dostawcy.</p>
+      </div>
+      <div class="tile" onclick="openSuppliersDemandHub()">
+        <span class="tile-icon">🔔</span>
+        <p class="tile-name">Popyt na braki</p>
+        <p class="tile-desc">Zgłoszenia klientów na brakujący towar, wg dostawcy.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: DOSTAWCY — RANKING (stockValue/sales30/returns/margin) -->
+  <div class="screen" id="screen-suppliers-ranking">
+    <p class="finance-range-label" id="suppliersRankingNote"></p>
+    <div class="table-meta">
+      <p id="suppliersRankingInfo"></p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="suppliersRankingHead"></tr></thead>
+        <tbody id="suppliersRankingBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN: DOSTAWCY — POPYT NA BRAKI -->
+  <div class="screen" id="screen-suppliers-demand">
+    <div class="finance-filters pill-row" id="suppliersDemandFilters">
+      <button class="pill" data-key="d7" onclick="applySuppliersDemandPeriod('d7')">7 dni</button>
+      <button class="pill" data-key="d14" onclick="applySuppliersDemandPeriod('d14')">14 dni</button>
+      <button class="pill" data-key="d30" onclick="applySuppliersDemandPeriod('d30')">30 dni</button>
+    </div>
+    <div class="table-meta">
+      <p id="suppliersDemandInfo"></p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="rank sticky-col"></th><th class="identity-col sticky-col">Dostawca</th><th>Liczba SKU</th><th>Liczba zgłoszeń</th><th>Wyprzedane (stan 0)</th></tr></thead>
+        <tbody id="suppliersDemandBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN: DOSTAWCY — SZCZEGÓŁY DOSTAWCY (lista produktów) -->
+  <div class="screen" id="screen-suppliers-detail">
+    <p class="finance-range-label" id="suppliersDetailNote"></p>
+    <div class="table-meta">
+      <p id="suppliersDetailInfo"></p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="suppliersDetailHead"></tr></thead>
+        <tbody id="suppliersDetailBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN: DO ZAMÓWIENIA / BRAKI -->
+  <div class="screen" id="screen-reorder-dashboard">
+    <div class="hub-grid">
+      <div class="stat-card">
+        <div class="stat-hero" id="reorderCount"></div>
+        <div class="stat-hero-label">produktów do domówienia</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-hero" id="reorderValueBraku"></div>
+        <div class="stat-hero-label">wartość braku (netto)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-hero" id="reorderValueDomowienia"></div>
+        <div class="stat-hero-label">wartość domówienia (netto)</div>
+      </div>
+    </div>
+    <div class="finance-error" id="reorderError"></div>
+
+    <div class="finance-filters pill-row" id="reorderFilters">
+      <button class="pill" data-key="all" onclick="applyReorderFilter('all')">Wszystko</button>
+      <button class="pill" data-key="waiting" onclick="applyReorderFilter('waiting')">Czeka na zamówienie</button>
+      <button class="pill" data-key="ordered" onclick="applyReorderFilter('ordered')">Już zamówione</button>
+    </div>
+
+    <div class="table-meta">
+      <p id="reorderTableInfo"></p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th class="rank sticky-col"></th>
+          <th class="identity-col sticky-col">Produkt</th>
+          <th>Stan / min</th>
+          <th>Ilość do domówienia</th>
+          <th>Wartość braku</th>
+          <th>Wartość domówienia</th>
+          <th>Alerty (30 dni)</th>
+          <th>Status</th>
+        </tr></thead>
+        <tbody id="reorderTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN: STANY MAGAZYNOWE -->
+  <div class="screen" id="screen-stock-dashboard">
+    <div class="hub-grid">
+      <div class="stat-card">
+        <div class="stat-hero" id="stockLiveQty"></div>
+        <div class="stat-hero-label">sztuk w magazynie (teraz)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-hero" id="stockLiveBuy"></div>
+        <div class="stat-hero-label">wartość po cenie zakupu (teraz)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-hero" id="stockLiveSell"></div>
+        <div class="stat-hero-label">wartość po aktualnej cenie sprzedaży netto (teraz)</div>
+      </div>
+    </div>
+    <div class="finance-error" id="stockLiveError"></div>
+
+    <div class="finance-range-label" style="margin-top:28px;">Historia stanów magazynowych</div>
+    <div class="finance-filters pill-row" id="stockChartFilters">
+      <button class="pill" data-key="d7" onclick="applyStockChartPeriod('d7')">7 dni</button>
+      <button class="pill" data-key="d14" onclick="applyStockChartPeriod('d14')">14 dni</button>
+      <button class="pill" data-key="d30" onclick="applyStockChartPeriod('d30')">30 dni</button>
+      <button class="pill" data-key="d60" onclick="applyStockChartPeriod('d60')">60 dni</button>
+      <button class="pill" data-key="d90" onclick="applyStockChartPeriod('d90')">90 dni</button>
+    </div>
+    <div class="finance-error" id="stockChartError"></div>
+
+    <div class="stock-chart-card">
+      <h3>Wartość zapasów (zakup / sprzedaż netto) i suma sztuk</h3>
+      <div id="stockCombinedChart"></div>
+    </div>
+
+    <button class="chart-table-toggle" id="stockChartTableToggle" onclick="toggleStockChartTable()">Pokaż dane w tabeli</button>
+    <div class="table-wrap chart-table-wrap" id="stockChartTableWrap" hidden>
+      <table>
+        <thead><tr><th>Data</th><th>Ilość</th><th>Wartość (zakup)</th><th>Wartość (sprzedaż netto)</th></tr></thead>
+        <tbody id="stockChartTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="finance-range-label" style="margin-top:36px;">Stan na konkretny dzień</div>
+    <div class="stock-date-row">
+      <label for="stockDateInput">Wybierz dzień (dziś lub wcześniej)</label>
+      <input type="date" class="finance-date-input" id="stockDateInput">
+      <button class="refresh-btn" onclick="showStockForDate()">Pokaż</button>
+    </div>
+    <div class="stock-date-toggle-row">
+      <button class="chart-table-toggle" id="stockDateToggle" onclick="toggleStockDateResults()" hidden>Schowaj tabelę</button>
+    </div>
+
+    <div id="stockDateResultsWrap" hidden>
+      <div class="hub-grid">
+        <div class="stat-card">
+          <div class="stat-hero" id="stockDateQty"></div>
+          <div class="stat-hero-label">sztuk w magazynie tego dnia</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-hero" id="stockDateBuy"></div>
+          <div class="stat-hero-label">wartość po cenie zakupu tego dnia</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-hero" id="stockDateSell"></div>
+          <div class="stat-hero-label">wartość po cenie sprzedaży netto tego dnia</div>
+        </div>
+      </div>
+      <div class="table-meta">
+        <p id="stockDateInfo"></p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="rank sticky-col"></th><th class="identity-col sticky-col">Produkt</th><th>Ilość</th><th>Wartość (zakup)</th><th>Wartość (sprzedaż netto)</th></tr></thead>
+          <tbody id="stockDateTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 14: FINANSE — WYBÓR RAPORTU -->
+  <div class="screen" id="screen-finance-category">
+    <div class="hub-grid">
+      <div class="tile" onclick="openFinanceSales()">
+        <span class="tile-icon">💹</span>
+        <p class="tile-name">Wartości sprzedaży</p>
+        <p class="tile-desc">Sprzedaż brutto, zysk, marża i koszt wysyłki w wybranym okresie.</p>
+      </div>
+      <div class="tile" onclick="openCashflowHub()">
+        <span class="tile-icon">💵</span>
+        <p class="tile-name">Cash-Flow</p>
+        <p class="tile-desc">Prognoza wpływów i wydatków wg promocji, faktur i zwrotów.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 15: FINANSE — WARTOŚCI SPRZEDAŻY (DASHBOARD) -->
+  <div class="screen" id="screen-finance-dashboard">
+    <div class="finance-filters pill-row" id="financeFilters">
+      <button class="pill" data-key="yesterday" onclick="applyFinancePreset('yesterday')">Poprzedni dzień</button>
+      <button class="pill" data-key="currentWeek" onclick="applyFinancePreset('currentWeek')">Bieżący tydzień<span class="pill-sub">piątek–czwartek</span></button>
+      <button class="pill" data-key="lastWeek" onclick="applyFinancePreset('lastWeek')">Ostatni tydzień<span class="pill-sub">piątek–czwartek</span></button>
+      <button class="pill" data-key="currentMonth" onclick="applyFinancePreset('currentMonth')">Bieżący miesiąc</button>
+      <button class="pill" data-key="lastMonth" onclick="applyFinancePreset('lastMonth')">Ostatni miesiąc</button>
+      <button class="pill" data-key="currentYear" onclick="applyFinancePreset('currentYear')">Bieżący rok</button>
+    </div>
+
+    <div class="finance-range-row">
+      <label for="financeDateFrom">Zakres dat</label>
+      <input type="date" class="finance-date-input" id="financeDateFrom">
+      <span class="finance-range-sep">–</span>
+      <input type="date" class="finance-date-input" id="financeDateTo">
+      <button class="refresh-btn" onclick="applyFinanceCustomRange()">Zastosuj</button>
+    </div>
+
+    <p class="finance-range-label" id="financeRangeLabel"></p>
+    <div class="finance-error" id="financeError"></div>
+
+    <div class="hub-grid">
+      <div class="stat-card">
+        <div class="stat-hero" id="financeGross"></div>
+        <div class="stat-hero-label">Sprzedaż brutto (z VAT)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-hero" id="financeProfit"></div>
+        <div class="stat-hero-label">Zysk netto (bez VAT)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-hero" id="financeMargin"></div>
+        <div class="stat-hero-label">Marża (po kosztach wysyłki po stronie nadawcy)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-hero" id="financeShipping"></div>
+        <div class="stat-hero-label">Koszt wysyłki pokryty przez odbiorcę</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 16: FINANSE — CASH-FLOW -->
+  <div class="screen" id="screen-cashflow-dashboard">
+    <div class="finance-filters pill-row" id="cashflowFilters">
+      <button class="pill" data-key="weekRemainder" onclick="applyCashflowFilter('weekRemainder')">Pozostałe dni tygodnia</button>
+      <button class="pill" data-key="monthRemainder" onclick="applyCashflowFilter('monthRemainder')">Pozostałe dni miesiąca</button>
+      <button class="pill" data-key="nextMonth" onclick="applyCashflowFilter('nextMonth')">Następny miesiąc</button>
+      <button class="pill" data-key="prevMonth" onclick="applyCashflowFilter('prevMonth')">Poprzedni miesiąc</button>
+    </div>
+
+    <div class="finance-range-row">
+      <label for="cfWeekDate">Wybierz tydzień (dowolna data)</label>
+      <input type="date" class="finance-date-input" id="cfWeekDate">
+      <button class="refresh-btn" onclick="applyCashflowPickedWeek()">Pokaż tydzień</button>
+    </div>
+
+    <div class="finance-range-row cf-overrides-row">
+      <label for="cfNone">Brak promocji</label>
+      <input type="number" class="finance-date-input cf-override-input" id="cfNone" value="15000">
+      <label for="cfLow">Promocja 0–15%</label>
+      <input type="number" class="finance-date-input cf-override-input" id="cfLow" value="40000">
+      <label for="cfHigh">Promocja 16%+</label>
+      <input type="number" class="finance-date-input cf-override-input" id="cfHigh" value="60000">
+      <label for="cfNk">NK (opcjonalnie)</label>
+      <input type="number" class="finance-date-input cf-override-input" id="cfNk" placeholder="jak bez promocji">
+      <button class="refresh-btn" onclick="applyCashflowOverrides()">Przelicz</button>
+    </div>
+    <p class="finance-range-label cf-marketing-rate-info" id="cfMarketingRateInfo"></p>
+
+    <p class="finance-range-label" id="cfRangeLabel"></p>
+
+    <div class="hub-grid">
+      <div class="stat-card cf-panel" id="cfMiniony">
+        <div class="stat-hero-label">CASH FLOW — miniony okres (<span id="cfMinionyLabel"></span>)</div>
+        <div class="cf-split">
+          <div class="cf-split-col">
+            <div class="cf-col-title">Prognoza (jak przewidywano)</div>
+            <div class="modal-grid cf-grid">
+              <div><div class="modal-stat-label">Planowany przychód</div><div class="modal-stat-val" id="cfPlannedMiniony"></div></div>
+              <div><div class="modal-stat-label">Koszty marketingu</div><div class="modal-stat-val" id="cfMarketingMinionyPlan"></div></div>
+              <div><div class="modal-stat-label">Faktury FV</div><div class="modal-stat-val" id="cfInvoicesMinionyPlan"></div><div class="cf-fv-breakdown" id="cfInvoicesMinionyPlanBreakdown"></div></div>
+              <div><div class="modal-stat-label">Zwroty do wypłaty</div><div class="modal-stat-val" id="cfReturnsMinionyPlan"></div></div>
+            </div>
+            <div class="cf-total-row"><div class="modal-stat-label">Planowany bilans</div><div class="modal-stat-val" id="cfPlannedBalance"></div></div>
+          </div>
+          <div class="cf-split-col">
+            <div class="cf-col-title">Realizacja</div>
+            <div class="modal-grid cf-grid">
+              <div><div class="modal-stat-label">Realny przychód</div><div class="modal-stat-val" id="cfRealMiniony"></div></div>
+              <div><div class="modal-stat-label">Koszty marketingu</div><div class="modal-stat-val" id="cfMarketingMiniony"></div></div>
+              <div><div class="modal-stat-label">Faktury FV</div><div class="modal-stat-val" id="cfInvoicesMiniony"></div><div class="cf-fv-breakdown" id="cfInvoicesMinionyBreakdown"></div></div>
+              <div><div class="modal-stat-label">Zwroty do wypłaty</div><div class="modal-stat-val" id="cfReturnsMiniony"></div></div>
+            </div>
+            <div class="cf-total-row"><div class="modal-stat-label">Realny bilans</div><div class="modal-stat-val" id="cfBalanceMiniony"></div></div>
+          </div>
+        </div>
+        <div class="cf-deviation-row">
+          <div class="modal-stat-label">Różnica: realizacja − prognoza</div>
+          <div class="modal-stat-val" id="cfDeviation"></div>
+        </div>
+        <div class="finance-range-label cf-promo-title">Promocje w minionym okresie:</div>
+        <div class="cf-promo-list" id="cfPromosMiniony"></div>
+      </div>
+
+      <div class="stat-card cf-panel" id="cfPrognoza">
+        <div class="stat-hero-label">CASH FLOW — prognoza (<span id="cfPrognozaLabel"></span>)</div>
+        <div class="modal-grid cf-grid">
+          <div><div class="modal-stat-label">Planowany przychód</div><div class="modal-stat-val" id="cfPlannedPrognoza"></div></div>
+          <div><div class="modal-stat-label">Faktury FV do zapłaty</div><div class="modal-stat-val" id="cfInvoicesPrognoza"></div><div class="cf-fv-breakdown" id="cfInvoicesPrognozaBreakdown"></div></div>
+          <div><div class="modal-stat-label">Koszty marketingu</div><div class="modal-stat-val" id="cfMarketingPrognoza"></div></div>
+          <div><div class="modal-stat-label">Rezerwa na zwroty klientów</div><div class="modal-stat-val" id="cfReservePrognoza"></div></div>
+        </div>
+        <div class="cf-total-row"><div class="modal-stat-label">Prognoza cashflow netto</div><div class="modal-stat-val" id="cfNetForecast"></div></div>
+        <div class="finance-range-label cf-promo-title">Zaplanowane promocje:</div>
+        <div class="cf-promo-list" id="cfPromosPrognoza"></div>
+      </div>
+    </div>
+
+    <div class="stat-card cf-week-summary">
+      <div class="cf-col-title">Założenie na cały okres (<span id="cfFullRangeLabel"></span>)</div>
+
+      <div class="cf-row-title">Przychody</div>
+      <div class="modal-grid cf-grid">
+        <div><div class="modal-stat-label">Plan na cały okres</div><div class="modal-stat-val" id="cfFullPlanned"></div></div>
+        <div><div class="modal-stat-label">Zrealizowano dotąd</div><div class="modal-stat-val" id="cfFullRealized"></div></div>
+        <div><div class="modal-stat-label">Prognoza na pozostałe dni</div><div class="modal-stat-val" id="cfFullRemaining"></div></div>
+      </div>
+
+      <div class="cf-row-title">Koszty</div>
+      <div class="modal-grid cf-grid">
+        <div><div class="modal-stat-label">Plan na cały okres</div><div class="modal-stat-val" id="cfFullCostsPlanned"></div></div>
+        <div><div class="modal-stat-label">Poniesione dotąd</div><div class="modal-stat-val" id="cfFullCostsRealized"></div></div>
+        <div><div class="modal-stat-label">Prognoza na pozostałe dni</div><div class="modal-stat-val" id="cfFullCostsRemaining"></div></div>
+      </div>
+
+      <div class="cf-total-row"><div class="modal-stat-label">Wynik na koniec okresu</div><div class="modal-stat-val" id="cfFullResult"></div></div>
+    </div>
+
+    <p class="cf-liquidity" id="cfLiquidity"></p>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-photo-wrap">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <img class="modal-photo" id="modalPhoto" src="" alt="">
+    </div>
+    <div class="modal-body">
+      <div class="modal-id" id="modalId"></div>
+      <div class="modal-title" id="modalName"></div>
+      <div class="modal-grid" id="modalGrid"></div>
+      <div class="modal-extra" id="modalExtra"></div>
+      <div class="modal-note" id="modalNote"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL — KLIENT (bez zdjęcia; pokazuje pełny komplet kolumn bieżącego raportu) -->
+<div class="overlay" id="custOverlay" onclick="if(event.target===this)closeCustomerModal()">
+  <div class="modal">
+    <div class="modal-body">
+      <button class="modal-close" onclick="closeCustomerModal()">✕</button>
+      <div class="modal-title" id="custModalName"></div>
+      <div class="modal-grid" id="custModalGrid"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

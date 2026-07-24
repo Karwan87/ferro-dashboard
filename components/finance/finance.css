@@ -1,0 +1,87 @@
+.finance-filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+.finance-filters .pill.active{background:var(--gold);}
+.finance-filters .pill.active .pill-sub{color:#3a2e00;}
+
+.finance-range-row{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:24px;
+  padding:14px 16px;background:var(--paper-dim);border-radius:9px;
+}
+.finance-range-row label{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;
+  color:#6B6670;
+}
+.finance-date-input{
+  font-family:'Inter',sans-serif;font-size:13.5px;padding:8px 10px;border:1px solid #DCD3C0;
+  border-radius:6px;background:#fff;color:var(--ink);
+}
+.finance-range-sep{color:#8A8272;}
+.finance-range-row .refresh-btn{color:var(--ink);border-color:#8A8272;}
+.finance-range-row .refresh-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+.finance-range-label{color:var(--text-muted);font-size:12.5px;margin:0 0 16px;}
+.cf-marketing-rate-info{font-family:'IBM Plex Mono',monospace;font-size:11.5px;margin-top:-8px;}
+.finance-error{color:var(--rust);font-size:12.5px;margin-bottom:16px;}
+
+/* 4 karty obok siebie w hub-grid potrzebują mniejszej czcionki niż pojedyncza,
+   pełnoszerokościowa statystyka (Zwroty/Alerty) — .stat-hero domyślnie ma 48px. */
+#screen-finance-dashboard .hub-grid .stat-card{padding:24px 20px;}
+#screen-finance-dashboard .hub-grid .stat-hero{font-size:26px;}
+
+@media(max-width:560px){
+  .finance-range-row{flex-direction:column;align-items:stretch;}
+  .finance-date-input{width:100%;}
+}
+
+/* ---------- CASH-FLOW: dwa panele (miniony/prognoza) obok siebie ---------- */
+.cf-override-input{width:90px;}
+.cf-panel{text-align:left;}
+.cf-panel .stat-hero-label{font-size:12px;margin-bottom:0;}
+.cf-panel .cf-grid{grid-template-columns:1fr 1fr;margin-top:16px;}
+.cf-total-row{
+  margin-top:14px;padding-top:14px;border-top:1px solid #E4DCC9;
+}
+.cf-total-row .modal-stat-val{font-size:19px;}
+
+/* Rozbicie faktur FV na środki obrotowe (ŚO) i zwykłe KUP — dwie odznaki
+   pod sumą, żeby skład był widoczny na pierwszy rzut oka. */
+.cf-fv-breakdown{margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;}
+.cf-fv-tag{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:2px 8px;border-radius:9px;
+  white-space:nowrap;
+}
+.cf-fv-tag.cf-fv-so{background:var(--gold);color:#3a2e00;font-weight:600;}
+.cf-fv-tag.cf-fv-kup{background:transparent;border:1px solid #8A8272;color:#6B6670;}
+.cf-promo-title{margin:16px 0 6px;}
+.cf-promo-list{font-size:12.5px;color:#6B6670;line-height:1.6;}
+.cf-liquidity{font-weight:600;font-size:14px;margin-top:20px;text-align:center;}
+
+/* Panel "miniony": dwie kolumny (prognoza | realizacja) obok siebie, każda
+   z metrykami w jednej pionowej liście (nie 2x2) + różnica na dole. */
+.cf-split{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.cf-split-col .cf-grid{grid-template-columns:1fr;gap:10px;margin-top:10px;}
+.cf-col-title{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;
+  color:#6B6670;padding-bottom:8px;border-bottom:1px solid #E4DCC9;
+}
+.cf-deviation-row{
+  margin-top:14px;padding-top:14px;border-top:1px solid #E4DCC9;text-align:center;
+}
+.cf-deviation-row .modal-stat-val{font-size:19px;}
+
+/* Podsumowanie całego okresu — pod kartami; wiersz przychodów, wiersz kosztów,
+   a pod spodem końcowy wynik. */
+.cf-week-summary{margin-top:20px;text-align:left;}
+.cf-week-summary .cf-grid{grid-template-columns:1fr 1fr 1fr;margin-top:12px;}
+.cf-week-summary .cf-row-title{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;
+  color:#8A8272;margin-top:18px;
+}
+.cf-week-summary .cf-row-title:first-child{margin-top:0;}
+.cf-week-summary .cf-total-row{text-align:center;}
+
+@media(max-width:560px){
+  .cf-panel .cf-grid{grid-template-columns:1fr 1fr;}
+  .cf-override-input{width:100%;}
+  .cf-split{grid-template-columns:1fr;gap:20px;}
+  .cf-week-summary .cf-grid{grid-template-columns:1fr;}
+}

@@ -1,0 +1,20 @@
+/* Moduł Alerty korzysta głównie ze wspólnych stylów (.stat-card/.stat-hero
+   z base.css, chrome tabeli z table.css, .prod-cell dla wiersza produktu) —
+   tylko filtr dostawcy potrzebuje własnych, drobnych reguł. */
+.alerts-filter-row{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0;
+  padding:14px 16px;background:var(--paper-dim);border-radius:9px;
+}
+.alerts-filter-row label{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;
+  color:#6B6670;
+}
+.alerts-supplier-select{
+  font-family:'Inter',sans-serif;font-size:13.5px;padding:8px 10px;border:1px solid #DCD3C0;
+  border-radius:6px;background:#fff;color:var(--ink);min-width:220px;
+}
+
+@media(max-width:560px){
+  .alerts-filter-row{flex-direction:column;align-items:stretch;}
+  .alerts-supplier-select{width:100%;}
+}

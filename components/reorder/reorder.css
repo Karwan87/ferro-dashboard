@@ -1,0 +1,33 @@
+#screen-reorder-dashboard .hub-grid .stat-card{padding:24px 20px;}
+#screen-reorder-dashboard .hub-grid .stat-hero{font-size:26px;}
+
+.reorder-below-min{color:var(--rust);font-weight:600;}
+
+/* Odznaki siedzą wewnątrz .table-wrap, które ma JASNE tło (var(--paper))
+   i ciemny tekst domyślnie — stąd stonowane, ciemne kolory zamiast jasnych. */
+.reorder-badge{
+  display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;
+  padding:3px 9px;border-radius:12px;border:1px solid #8A8272;color:#6B6670;
+  white-space:nowrap;
+}
+.reorder-badge-ok{border-color:var(--sage);color:var(--sage);}
+
+.reorder-alert-badge{
+  display:inline-block;background:var(--rust);color:var(--paper);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:10px;
+}
+
+/* Sekcja w modalu produktu (tylko z widoku "Do zamówienia") — modal ma
+   jasne tło (var(--paper)) i ciemny tekst, jak reszta jego zawartości. */
+.modal-extra:not(:empty){margin-top:14px;padding-top:14px;border-top:1px solid #EFE9DC;}
+.modal-alert-groups{max-height:200px;overflow-y:auto;margin-top:6px;}
+.modal-alert-group{margin-bottom:10px;}
+.modal-alert-group:last-child{margin-bottom:0;}
+.modal-alert-attr{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px;}
+.modal-alert-total{font-size:11px;font-weight:400;color:#8A8272;}
+.modal-alert-entry{
+  display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
+  color:#6B6670;padding:2px 0 2px 10px;
+}
+.modal-alert-entry span:last-child{color:var(--ink);font-weight:600;}

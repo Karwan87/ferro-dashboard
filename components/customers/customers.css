@@ -1,0 +1,9 @@
+/* ---------- TABELA — kolumna klienta ---------- */
+.cust-cell{min-width:200px;}
+.cust-name{font-weight:600;line-height:1.25;}
+.cust-meta{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8A8272;margin-top:2px;}
+
+@media(max-width:560px){
+  .cust-cell{min-width:0;max-width:78px;}
+  .cust-name{font-size:12px;}
+}

@@ -1,0 +1,67 @@
+/* Generyczny "chrome" tabeli danych — współdzielony przez każdy komponent
+   pokazujący listę wierszy z sortowalnymi kolumnami (sales, customers, ...).
+   Wygląd specyficzny dla danego komponentu (np. miniatura produktu, kolory
+   odznak zwrotów) zostaje w CSS tego komponentu. */
+.table-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.table-meta p{margin:0;color:var(--text-muted);font-size:12.5px;}
+
+/* overflow-x:auto zamiast hidden — widoki z większą liczbą kolumn mogą być
+   szersze niż kontener; przewijanie w poziomie zamiast przycinania gwarantuje,
+   że żadna kolumna nie zniknie, niezależnie od szerokości ekranu. Brak sztywnego
+   min-width — tabela ma zajmować dokładnie tyle miejsca, ile potrzebuje jej
+   zawartość (mało kolumn = wąska tabela, dużo kolumn = naturalne przewijanie). */
+.table-wrap{background:var(--paper);border-radius:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;color:var(--ink);}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+/* white-space:normal + max-width — nagłówki zawijają się do 2 linii zamiast
+   rozciągać kolumnę na całą długość etykiety. Ważne przy raportach z wieloma
+   kolumnami (np. Klienci), gdzie same nagłówki potrafiłyby zdominować szerokość. */
+thead th{
+  text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.8px;
+  text-transform:uppercase;color:#6B6670;padding:14px 14px;border-bottom:1px solid #E4DCC9;
+  cursor:pointer;user-select:none;white-space:normal;max-width:130px;
+}
+thead th:hover{color:var(--berry);}
+thead th.sorted{color:var(--berry);}
+thead th .arrow{font-size:9px;margin-left:3px;}
+tbody tr{border-bottom:1px solid #EFE9DC;cursor:pointer;transition:background .1s ease;}
+tbody tr:hover{background:#F2EBDA;}
+tbody tr:last-child{border-bottom:none;}
+td{padding:16px 14px;vertical-align:middle;}
+td.num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;}
+td.rank{color:#B5AC98;font-family:'IBM Plex Mono',monospace;font-size:12px;width:32px;min-width:32px;max-width:32px;}
+th.rank{width:32px;min-width:32px;max-width:32px;}
+
+/* Kolumna rankingu i kolumna "tożsamości" wiersza (produkt / klient) zostają
+   przypięte do lewej krawędzi, gdy tabela przewija się w poziomie — bez tego
+   liczby po prawej tracą kontekst, do czego się odnoszą. */
+.sticky-col{position:sticky;background:var(--paper);z-index:2;}
+th.sticky-col{z-index:3;}
+.rank.sticky-col{left:0;}
+.identity-col.sticky-col{left:32px;box-shadow:2px 0 6px rgba(0,0,0,.08);}
+tbody tr:hover td.sticky-col{background:#F2EBDA;}
+
+.empty-state{color:var(--text-muted);text-align:center;padding:32px 16px;cursor:default;}
+
+/* Kolumna "produktu" (miniatura + nazwa) — współdzielona przez każdy komponent
+   pokazujący wiersz z konkretnym produktem (sales, returns). */
+.prod-cell{display:flex;align-items:center;gap:14px;min-width:250px;}
+.prod-thumb{
+  width:60px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#E4DCC9;
+}
+.prod-name{font-weight:600;line-height:1.25;}
+.prod-id{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8A8272;}
+.swatch{display:flex;gap:2px;align-items:flex-end;height:16px;margin-top:4px;}
+.swatch i{width:5px;background:var(--gold);border-radius:1px;opacity:.85;display:block;}
+
+@media(max-width:560px){
+  .mobile-hide{display:none;}
+  td, thead th{padding:8px 5px;}
+  thead th{white-space:normal;font-size:9px;}
+  td.num{font-size:11.5px;}
+  .prod-cell{gap:6px;min-width:0;max-width:105px;}
+  .prod-cell > div{min-width:0;}
+  .prod-name{font-size:12px;}
+  .prod-id{display:none;}
+  .prod-thumb{width:34px;height:34px;}
+  .swatch{display:none;}
+}

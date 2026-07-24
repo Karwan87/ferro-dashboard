@@ -1,0 +1,67 @@
+/* ---------- Żywe statystyki (punkty 1-2) ---------- */
+#screen-stock-dashboard .hub-grid .stat-card{padding:24px 20px;}
+#screen-stock-dashboard .hub-grid .stat-hero{font-size:26px;}
+
+/* ---------- Wybór konkretnej daty (punkt 3) ---------- */
+.stock-date-row{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px;
+  padding:14px 16px;background:var(--paper-dim);border-radius:9px;
+}
+.stock-date-row label{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;
+  color:#6B6670;
+}
+.stock-date-row .refresh-btn{color:var(--ink);border-color:#8A8272;}
+.stock-date-row .refresh-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ---------- Wykresy (punkt 4) ---------- */
+.stock-chart-card{
+  background:var(--paper);border-radius:10px;padding:20px 22px;margin-bottom:16px;
+}
+.stock-chart-card h3{margin:0 0 10px;font-size:15px;color:var(--ink);}
+.chart-loading{color:var(--text-muted);font-size:13px;}
+
+.chart-legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;}
+.legend-item{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#6B6670;
+  font-family:'IBM Plex Mono',monospace;
+}
+.legend-swatch{width:12px;height:2px;border-radius:1px;display:inline-block;}
+
+.chart-svg-wrap{position:relative;}
+.stock-chart-svg{width:100%;height:auto;display:block;}
+.chart-axis-label{font-family:'IBM Plex Mono',monospace;font-size:9.5px;fill:#8A8272;}
+.chart-end-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:var(--ink);font-weight:600;}
+.chart-marker{stroke:var(--paper);stroke-width:2;}
+.chart-hover-capture{cursor:crosshair;}
+.chart-crosshair{stroke:var(--ink);stroke-width:1;pointer-events:none;transition:opacity .1s;}
+
+.chart-tooltip{
+  position:absolute;top:6px;left:0;background:var(--ink);color:var(--paper);
+  border-radius:7px;padding:8px 10px;font-size:12px;pointer-events:none;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);min-width:130px;
+}
+.chart-tooltip .tooltip-date{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#C8C3CE;margin-bottom:5px;
+}
+.chart-tooltip .tooltip-row{display:flex;align-items:center;gap:6px;padding:2px 0;}
+.chart-tooltip .tooltip-key{width:10px;height:2px;border-radius:1px;display:inline-block;flex-shrink:0;}
+.chart-tooltip .tooltip-label{flex:1;color:#C8C3CE;font-size:11.5px;}
+.chart-tooltip .tooltip-val{color:var(--paper);font-size:12.5px;}
+
+/* Te przyciski siedzą bezpośrednio na ciemnym tle strony (body{background:
+   var(--ink)}), nie na jasnej karcie — stąd jasny tekst (var(--paper)), w
+   odróżnieniu od .stock-date-row .refresh-btn, który siedzi na jasnym pasku. */
+.chart-table-toggle{
+  margin-top:4px;background:none;border:1px solid var(--line);color:var(--paper);
+  border-radius:20px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;
+  font-family:'Inter',sans-serif;
+}
+.chart-table-toggle:hover{border-color:var(--gold);color:var(--gold);}
+.chart-table-wrap{margin-top:14px;}
+
+.stock-date-toggle-row{margin:14px 0;}
+
+@media(max-width:560px){
+  .stock-date-row{flex-direction:column;align-items:stretch;}
+}
