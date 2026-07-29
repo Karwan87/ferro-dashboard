@@ -19,7 +19,7 @@ export async function openReorderHub(){
   });
   document.getElementById('reorderError').textContent = '';
   document.getElementById('reorderTableInfo').textContent = 'Ładowanie…';
-  document.getElementById('reorderTableBody').innerHTML = `<tr><td colspan="8" class="empty-state">Ładowanie…</td></tr>`;
+  document.getElementById('reorderTableBody').innerHTML = `<tr><td colspan="11" class="empty-state">Ładowanie…</td></tr>`;
 
   try{
     const { rows, totals } = await getReorderList(ALERT_WINDOW_DAYS);
@@ -37,7 +37,7 @@ export async function openReorderHub(){
     document.getElementById('reorderError').textContent =
       `Nie udało się pobrać danych (${err.message}). Sprawdź, czy arkusze Panel i Alerts są nadal udostępnione kontu serwisowemu.`;
     document.getElementById('reorderTableInfo').textContent = '';
-    document.getElementById('reorderTableBody').innerHTML = `<tr><td colspan="8" class="empty-state">Błąd.</td></tr>`;
+    document.getElementById('reorderTableBody').innerHTML = `<tr><td colspan="11" class="empty-state">Błąd.</td></tr>`;
   }
 }
 
@@ -65,7 +65,7 @@ function renderTable(){
     info.textContent = currentRows.length === 0
       ? 'Brak produktów oznaczonych do domówienia.'
       : 'Brak produktów dla wybranego filtra.';
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Brak produktów.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="empty-state">Brak produktów.</td></tr>`;
     return;
   }
 
@@ -87,6 +87,9 @@ function renderTable(){
       <td class="num">${r.ilDoDomowienia.toLocaleString('pl-PL')}</td>
       <td class="num">${fmtPLN(r.wartoscBraku)}</td>
       <td class="num">${fmtPLN(r.wartoscDomowienia)}</td>
+      <td class="num">${r.narzutPct !== null ? r.narzutPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>
       <td class="num">${r.alerty > 0 ? `<span class="reorder-alert-badge">${r.alerty}</span>` : '—'}</td>
       <td>${r.zamowiono ? '<span class="reorder-badge reorder-badge-ok">zamówione</span>' : '<span class="reorder-badge">czeka</span>'}</td>
     </tr>`;

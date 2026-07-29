@@ -1,6 +1,16 @@
 import { products } from './data.js';
 import { getAlertsSummary } from './alertsData.js';
 
+// Cena sprzedaży i cena zakupu są w arkuszu obie netto — narzut/marżę
+// liczymy więc wprost na wartościach netto, bez doliczania VAT.
+function profitMetrics(p){
+  const zysk = p.cena - p.cenaZakupu;
+  return {
+    narzutPct: p.cenaZakupu > 0 ? (zysk / p.cenaZakupu * 100) : null,
+    marzaPct: p.cena > 0 ? (zysk / p.cena * 100) : null,
+  };
+}
+
 /* Lista "do zamówienia" = to, co ktoś już oznaczył w arkuszu Panel jako
    "Czy do domówienia? = TAK" — nie liczymy tego sami z Aktualny stan/Min
    stock, bo decyzja "trzeba zamówić" bywa ręczna (np. produkt wycofywany
@@ -28,6 +38,8 @@ export async function getReorderList(alertDays = 30){
       wartoscDomowienia: p.wartoscDomowienia,
       zamowiono: p.zamowiono,
       alerty: alertsByProductId.get(p.id) || 0,
+      ...profitMetrics(p),
+      zwrotyPct: p.s30 > 0 ? Math.min(p.ret30 / p.s30 * 100, 100) : null,
     }))
     // Priorytet: najpierw liczba zgłoszeń (popyt, którego nie możemy obsłużyć),
     // potem wartość braku jako tie-breaker.
