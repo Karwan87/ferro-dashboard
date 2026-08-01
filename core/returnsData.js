@@ -13,10 +13,13 @@ const CSV_ORDERS  = DATA_BASE + 'ordery.csv';
 const CSV_SETTLEMENT = DATA_BASE + 'zwroty_kontrola.csv';
 
 // Zwroty: E produkt (ID), G cena, H ilość, T data zakupu (okres liczony wg tej daty,
-// tak jak w module Klienci — spójnie z resztą aplikacji).
-const RET = { productId: col('E'), price: col('G'), qty: col('H'), purchaseDate: col('T') };
-// Ordery: A SKU (ID produktu), C cena, D data sprzedaży, F ilość
-const ORD = { productId: col('A'), price: col('C'), saleDate: col('D'), qty: col('F') };
+// tak jak w module Klienci — spójnie z resztą aplikacji), U wartość przywróconego
+// towaru na stan magazynowy, V utracona marża.
+const RET = { productId: col('E'), price: col('G'), qty: col('H'), purchaseDate: col('T'), restockValue: col('U'), lostMargin: col('V') };
+// Ordery: A SKU (ID produktu), C cena, D data sprzedaży, F ilość, M uzyskana marża
+// (realna marża tej konkretnej linii zamówienia — uwzględnia promocje/obniżki,
+// w przeciwieństwie do statycznej "marży/szt." z katalogu, która się nie zmienia).
+const ORD = { productId: col('A'), price: col('C'), saleDate: col('D'), qty: col('F'), margin: col('M') };
 // Zwroty - kontrola: C zwrot środków do dnia, D wartość
 const SETTLE = { dueDate: col('C'), value: col('D') };
 
@@ -29,11 +32,7 @@ function matchesPeriod(dateStr, period){
   const d = parseDate(dateStr);
   if(!d) return false;
   if(period.type === 'year') return d.getFullYear() === period.year;
-  if(period.type === 'month') return d.getFullYear() === period.year && d.getMonth() === period.month;
-  const cutoff = new Date();
-  cutoff.setHours(0,0,0,0);
-  cutoff.setDate(cutoff.getDate() - period.days);
-  return d >= cutoff;
+  return d.getFullYear() === period.year && d.getMonth() === period.month;
 }
 
 let rawDataPromise = null;
@@ -52,24 +51,77 @@ function productMap(){
 }
 
 /* Ranking produktów wg liczby zwróconych sztuk w danym okresie — pomijamy
-   zwroty produktów, których nie ma już w bieżącym katalogu (brak dopasowania). */
+   zwroty produktów, których nie ma już w bieżącym katalogu (brak dopasowania).
+   totals liczone z WSZYSTKICH wierszy w okresie (bez wymogu dopasowania do
+   katalogu), żeby suma utraconej marży/wartości na stan się zgadzała z arkuszem. */
 export async function getReturnedProducts(period){
   const { returnRows } = await loadRawData();
   const pMap = productMap();
   const byProduct = {};
+  const totals = { returnedQty: 0, lostMargin: 0, restockValue: 0 };
 
   returnRows.forEach(row=>{
     if(!matchesPeriod(row[RET.purchaseDate], period)) return;
+    const qty = parseIntSafe(row[RET.qty]);
+    totals.returnedQty += qty;
+    totals.lostMargin += parseNum(row[RET.lostMargin]);
+    totals.restockValue += parseNum(row[RET.restockValue]);
+
     const id = parseIntSafe(row[RET.productId]);
     if(!id) return;
-    byProduct[id] = (byProduct[id] || 0) + parseIntSafe(row[RET.qty]);
+    byProduct[id] = (byProduct[id] || 0) + qty;
   });
 
-  return Object.entries(byProduct)
+  const rows = Object.entries(byProduct)
     .map(([id, returnedQty]) => ({ product: pMap[id], returnedQty }))
     .filter(r => r.product)
     .sort((a, b) => b.returnedQty - a.returnedQty)
     .slice(0, 50);
+
+  return { rows, totals };
+}
+
+function sumProductMetric(rows, idCol, dateCol, valueCol, productId, period, parser = parseNum){
+  let total = 0;
+  rows.forEach(row=>{
+    if(parseIntSafe(row[idCol]) !== productId) return;
+    if(period && !matchesPeriod(row[dateCol], period)) return;
+    total += parser(row[valueCol]);
+  });
+  return total;
+}
+
+/* Szczegóły zwrotów pojedynczego produktu w badanym okresie — sprzedane/zwrócone
+   sztuki, marża uzyskana ze sprzedaży, utracona marża ze zwrotów, i wynik netto
+   (marża uzyskana − marża utracona). Marża liczona z REALNYCH linii zamówień
+   (arkusz Ordery, kolumna M — "uzyskana marża"), NIE z marży/szt. w katalogu
+   (core/data.js) — ta jest statyczna i nie uwzględnia promocji/obniżek, przez
+   co zniekształcałaby wynik dla produktów, które bywały przecenione. Dodatkowo
+   wynik netto liczony też dla całego bieżącego roku, jako szerszy kontekst. */
+export async function getProductReturnDetail(productId, period){
+  const { returnRows, orderRows } = await loadRawData();
+  const yearPeriod = { type:'year', year: new Date().getFullYear() };
+
+  const unitsSoldPeriod = sumProductMetric(orderRows, ORD.productId, ORD.saleDate, ORD.qty, productId, period, parseIntSafe);
+  const grossMarginPeriod = sumProductMetric(orderRows, ORD.productId, ORD.saleDate, ORD.margin, productId, period);
+  const unitsReturnedPeriod = sumProductMetric(returnRows, RET.productId, RET.purchaseDate, RET.qty, productId, period, parseIntSafe);
+  const lostMarginPeriod = sumProductMetric(returnRows, RET.productId, RET.purchaseDate, RET.lostMargin, productId, period);
+
+  const grossMarginYear = sumProductMetric(orderRows, ORD.productId, ORD.saleDate, ORD.margin, productId, yearPeriod);
+  const lostMarginYear = sumProductMetric(returnRows, RET.productId, RET.purchaseDate, RET.lostMargin, productId, yearPeriod);
+
+  return {
+    unitsSoldPeriod,
+    grossMarginPeriod,
+    unitsReturnedPeriod,
+    lostMarginPeriod,
+    netProfitPeriod: grossMarginPeriod - lostMarginPeriod,
+    netProfitYear: grossMarginYear - lostMarginYear,
+  };
+}
+
+function dostawcaName(p){
+  return p?.dostawca || 'Nieznany dostawca';
 }
 
 /* Ranking dostawców wg % zwrotów (zwrócone/sprzedane szt.) w danym okresie —
@@ -88,15 +140,13 @@ export async function getSuppliersRanking(period){
   orderRows.forEach(row=>{
     if(!matchesPeriod(row[ORD.saleDate], period)) return;
     const p = pMap[parseIntSafe(row[ORD.productId])];
-    const name = p?.dostawca || 'Nieznany dostawca';
-    bucket(name).sold += parseIntSafe(row[ORD.qty]);
+    bucket(dostawcaName(p)).sold += parseIntSafe(row[ORD.qty]);
   });
 
   returnRows.forEach(row=>{
     if(!matchesPeriod(row[RET.purchaseDate], period)) return;
     const p = pMap[parseIntSafe(row[RET.productId])];
-    const name = p?.dostawca || 'Nieznany dostawca';
-    bucket(name).returned += parseIntSafe(row[RET.qty]);
+    bucket(dostawcaName(p)).returned += parseIntSafe(row[RET.qty]);
   });
 
   return Object.entries(byDostawca)
@@ -106,15 +156,56 @@ export async function getSuppliersRanking(period){
     .slice(0, 50);
 }
 
-/* Pojedynczy wskaźnik dla całego sklepu w danym okresie: sprzedane vs zwrócone sztuki. */
+/* Rozbicie produktów jednego dostawcy w danym okresie — sprzedane/zwrócone
+   sztuki i % zwrotów per model, do "wejścia" w dostawcę z rankingu powyżej.
+   Pomijamy produkty spoza katalogu (brak dopasowania po ID), tak jak w
+   getReturnedProducts — nie mamy czym ich pokazać w tabeli (brak nazwy/zdjęcia). */
+export async function getSupplierProducts(supplierName, period){
+  const { returnRows, orderRows } = await loadRawData();
+  const pMap = productMap();
+  const byProduct = {};
+
+  function bucket(id){
+    if(!byProduct[id]) byProduct[id] = { sold:0, returned:0 };
+    return byProduct[id];
+  }
+
+  orderRows.forEach(row=>{
+    if(!matchesPeriod(row[ORD.saleDate], period)) return;
+    const id = parseIntSafe(row[ORD.productId]);
+    const p = pMap[id];
+    if(!p || dostawcaName(p) !== supplierName) return;
+    bucket(id).sold += parseIntSafe(row[ORD.qty]);
+  });
+
+  returnRows.forEach(row=>{
+    if(!matchesPeriod(row[RET.purchaseDate], period)) return;
+    const id = parseIntSafe(row[RET.productId]);
+    const p = pMap[id];
+    if(!p || dostawcaName(p) !== supplierName) return;
+    bucket(id).returned += parseIntSafe(row[RET.qty]);
+  });
+
+  return Object.entries(byProduct)
+    .map(([id, v]) => ({ product: pMap[id], sold: v.sold, returned: v.returned, pct: v.sold > 0 ? (v.returned / v.sold * 100) : (v.returned > 0 ? 100 : 0) }))
+    .sort((a, b) => b.pct - a.pct || b.returned - a.returned);
+}
+
+/* Pojedynczy wskaźnik dla całego sklepu w danym okresie: sprzedane vs zwrócone
+   sztuki, plus utracona marża i wartość towaru wróconego na stan. */
 export async function getStoreWideIndicator(period){
   const { returnRows, orderRows } = await loadRawData();
-  let sold = 0, returned = 0;
+  let sold = 0, returned = 0, lostMargin = 0, restockValue = 0;
 
   orderRows.forEach(row=>{ if(matchesPeriod(row[ORD.saleDate], period)) sold += parseIntSafe(row[ORD.qty]); });
-  returnRows.forEach(row=>{ if(matchesPeriod(row[RET.purchaseDate], period)) returned += parseIntSafe(row[RET.qty]); });
+  returnRows.forEach(row=>{
+    if(!matchesPeriod(row[RET.purchaseDate], period)) return;
+    returned += parseIntSafe(row[RET.qty]);
+    lostMargin += parseNum(row[RET.lostMargin]);
+    restockValue += parseNum(row[RET.restockValue]);
+  });
 
-  return { sold, returned, pct: sold > 0 ? (returned / sold * 100) : 0 };
+  return { sold, returned, pct: sold > 0 ? (returned / sold * 100) : 0, lostMargin, restockValue };
 }
 
 /* Zwroty do rozliczenia — suma i lista pozycji z "Zwroty - kontrola", gdzie

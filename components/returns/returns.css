@@ -1,3 +1,7 @@
-/* Style specyficzne dla modułu Zwroty — obecnie puste, .stat-card/.stat-hero
-   (duża statystyka: wskaźnik %, suma do rozliczenia) przeniesione do
-   assets/styles/base.css, bo współdzieli je też moduł Alerty. */
+/* Style specyficzne dla modułu Zwroty — .stat-card/.stat-hero (duża statystyka:
+   wskaźnik %, suma do rozliczenia) przeniesione do assets/styles/base.css,
+   bo współdzieli je też moduł Alerty. */
+
+.returns-note{color:var(--gold);font-size:12.5px;margin-top:10px;}
+
+.returns-totals{background:var(--paper);color:var(--ink);border-radius:10px;padding:18px 22px;margin-bottom:16px;}

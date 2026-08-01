@@ -231,20 +231,10 @@
   <!-- SCREEN 7: ZWROTY — WYBÓR OKRESU -->
   <div class="screen" id="screen-returns-periods">
     <div class="hub-grid">
-      <div class="tile" onclick="openReturnsPeriod('d30')">
-        <span class="tile-icon">⏳</span>
-        <p class="tile-name">Ostatnie 30 dni</p>
-        <p class="tile-desc">Zwroty liczone od dzisiaj wstecz.</p>
-      </div>
-      <div class="tile" onclick="openReturnsPeriod('d60')">
-        <span class="tile-icon">⏳</span>
-        <p class="tile-name">Ostatnie 60 dni</p>
-        <p class="tile-desc">Zwroty liczone od dzisiaj wstecz.</p>
-      </div>
-      <div class="tile" onclick="openReturnsPeriod('d90')">
-        <span class="tile-icon">⏳</span>
-        <p class="tile-name">Ostatnie 90 dni</p>
-        <p class="tile-desc">Zwroty liczone od dzisiaj wstecz.</p>
+      <div class="tile" onclick="openReturnsCurrentMonth()">
+        <span class="tile-icon">📌</span>
+        <p class="tile-name">Bieżący miesiąc</p>
+        <p class="tile-desc">Uwaga: wynik jeszcze się "domyka" — zmienia się do połowy przyszłego miesiąca (14 dni na zwrot).</p>
       </div>
       <div class="tile" onclick="openReturnsPeriod('y2026')">
         <span class="tile-icon">📅</span>
@@ -269,7 +259,7 @@
     <div class="hub-grid" id="returnsMonthsGrid"></div>
   </div>
 
-  <!-- SCREEN 8: ZWROTY — WYBÓR RAPORTU (wspólny dla 5 okresów powyżej) -->
+  <!-- SCREEN 8: ZWROTY — WYBÓR RAPORTU (wspólny dla wszystkich okresów: bieżący miesiąc, 2026, dowolny miesiąc) -->
   <div class="screen" id="screen-returns-category">
     <div class="hub-grid">
       <div class="tile" onclick="openReturnsProducts()">
@@ -296,12 +286,36 @@
       <p id="retTableInfo"></p>
       <p>Kliknij nagłówek kolumny, by zmienić sortowanie</p>
     </div>
+    <div class="modal-grid returns-totals" id="retTableTotals" style="display:none;"></div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr id="retTableHeadRow"></tr>
         </thead>
         <tbody id="retTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SCREEN 9b: ZWROTY — PRODUKTY JEDNEGO DOSTAWCY (po kliknięciu wiersza w SCREEN 9).
+       Osobny ekran (nie ten sam #retTableBody co wyżej) celowo — inaczej "Wróć" z tego
+       widoku pokazywałby nieodświeżoną (starą) zawartość na ekranie listy dostawców,
+       bo router tylko przełącza widoczność ekranów, nie każe im się przerenderować. -->
+  <div class="screen" id="screen-returns-supplier-table">
+    <div class="table-meta">
+      <p id="retSupplierTableInfo"></p>
+      <p>Kliknij nagłówek kolumny, by zmienić sortowanie</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th class="rank sticky-col"></th>
+          <th class="identity-col sticky-col">Produkt</th>
+          <th data-key="sold">Sprzedano szt.</th>
+          <th data-key="returned">Zwrócono szt.</th>
+          <th data-key="pct">% zwrotów</th>
+        </tr></thead>
+        <tbody id="retSupplierTableBody"></tbody>
       </table>
     </div>
   </div>
