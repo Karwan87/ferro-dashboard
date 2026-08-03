@@ -238,7 +238,7 @@ export function renderTable(){
     (def.mode==='best' || def.mode==='margin' ? `Top ${rows.length} produktów` : `${rows.length} produktów spełnia kryteria`) +
     ' · sortowanie: ' + sortLabel(sortState.key) + (sortState.dir==='asc' ? ' rosnąco' : ' malejąco');
 
-  document.querySelectorAll('thead th[data-key]').forEach(th=>{
+  document.querySelectorAll('#tableHeadRow th[data-key]').forEach(th=>{
     th.classList.toggle('sorted', th.dataset.key===sortState.key);
     th.querySelector('.arrow').textContent = th.dataset.key===sortState.key ? (sortState.dir==='asc'?'▲':'▼') : '';
   });
