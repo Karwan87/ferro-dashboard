@@ -4,6 +4,7 @@ import {
   getSupplierMarginRanking, getSupplierDemandRanking,
 } from '../../core/suppliersData.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
+import { matchesProductQuery } from '../../core/search.js';
 
 const szt = v => v.toLocaleString('pl-PL') + ' szt.';
 
@@ -52,6 +53,9 @@ const REPORTS = {
 let currentReportKey = null;
 let currentRanking = [];
 let currentDemandDays = 30;
+let currentDetailDef = null;
+let currentDetailRows = [];
+let currentDetailSearch = '';
 
 export function openSuppliersHub(){
   navigateTo('screen-suppliers-category', 'Dostawcy');
@@ -119,10 +123,31 @@ export function openSupplierDetail(index){
   const def = REPORTS[currentReportKey];
   const r = currentRanking[index];
   navigateTo('screen-suppliers-detail', `Dostawcy · ${def.label} · ${r.dostawca}`);
+  currentDetailDef = def;
+  currentDetailRows = r.detailRows;
+  currentDetailSearch = '';
+  document.getElementById('suppliersDetailSearch').value = '';
   document.getElementById('suppliersDetailNote').textContent = def.note || '';
   document.getElementById('suppliersDetailHead').innerHTML = buildDetailHead(def);
-  document.getElementById('suppliersDetailInfo').textContent = `${r.detailRows.length} produktów`;
-  document.getElementById('suppliersDetailBody').innerHTML = r.detailRows.map((row, i) => {
+  renderSupplierDetailTable();
+}
+
+export function applySupplierDetailSearch(value){
+  currentDetailSearch = value;
+  renderSupplierDetailTable();
+}
+
+function renderSupplierDetailTable(){
+  const def = currentDetailDef;
+  const rows = currentDetailRows.filter(row => matchesProductQuery(currentDetailSearch, row.id, row.name));
+  document.getElementById('suppliersDetailInfo').textContent = `${rows.length} produktów`;
+  if(rows.length === 0){
+    const colspan = 2 + (def.extraDetailColumns?.length || 0) + 1;
+    document.getElementById('suppliersDetailBody').innerHTML =
+      `<tr><td colspan="${colspan}" class="empty-state">Brak produktów pasujących do wyszukiwania.</td></tr>`;
+    return;
+  }
+  document.getElementById('suppliersDetailBody').innerHTML = rows.map((row, i) => {
     const extra = (def.extraDetailColumns || []).map(c => `<td class="num">${c.fmt(c.get(row))}</td>`).join('');
     return `<tr onclick="openModal(${row.id}, true)">
       <td class="rank sticky-col">${i + 1}</td>

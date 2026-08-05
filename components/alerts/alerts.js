@@ -2,6 +2,7 @@ import { navigateTo } from '../../core/router.js';
 import { getAlertsSummary } from '../../core/alertsData.js';
 import { imgUrl, PLACEHOLDER } from '../../core/format.js';
 import { products } from '../../core/data.js';
+import { matchesProductQuery } from '../../core/search.js';
 
 const PERIOD_DEFS = {
   d1:  { label:'Ostatniego dnia (wczoraj)', days:1 },
@@ -14,6 +15,7 @@ const PERIOD_DEFS = {
 const NO_SUPPLIER = '__brak__';
 let currentRows = []; // {productId, name, attr, qty, known, dostawca}
 let currentSupplier = 'all';
+let currentSearch = '';
 
 export function openAlertsHub(){
   navigateTo('screen-alerts-periods', 'Alerty');
@@ -24,6 +26,8 @@ export async function openAlertsPeriod(periodKey){
   navigateTo('screen-alerts-report', 'Alerty · ' + def.label);
 
   currentSupplier = 'all';
+  currentSearch = '';
+  document.getElementById('alertsSearch').value = '';
   document.getElementById('alertsTotalValue').textContent = '…';
   document.getElementById('alertsSupplierFilter').innerHTML = '<option value="all">Wszyscy dostawcy</option>';
   document.getElementById('alertsTableInfo').textContent = 'Ładowanie…';
@@ -67,6 +71,11 @@ export function filterAlertsBySupplier(){
   renderAlertsTable();
 }
 
+export function applyAlertsSearch(value){
+  currentSearch = value;
+  renderAlertsTable();
+}
+
 function renderAlertsTable(){
   const info = document.getElementById('alertsTableInfo');
   const tbody = document.getElementById('alertsTableBody');
@@ -74,11 +83,12 @@ function renderAlertsTable(){
   let rows = currentRows;
   if(currentSupplier === NO_SUPPLIER) rows = rows.filter(r => !r.dostawca);
   else if(currentSupplier !== 'all') rows = rows.filter(r => r.dostawca === currentSupplier);
+  if(currentSearch) rows = rows.filter(r => matchesProductQuery(currentSearch, r.productId, r.known ? r.known.name : r.name));
 
   if(rows.length === 0){
     info.textContent = currentRows.length === 0
       ? 'Brak zgłoszeń w tym okresie.'
-      : 'Brak zgłoszeń dla wybranego dostawcy.';
+      : 'Brak zgłoszeń dla wybranego dostawcy/wyszukiwania.';
     tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Brak zgłoszeń.</td></tr>`;
     return;
   }

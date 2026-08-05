@@ -5,6 +5,16 @@
 .table-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
 .table-meta p{margin:0;color:var(--text-muted);font-size:12.5px;}
 
+/* Szukajka nad tabelami z listą produktów — jeden wygląd wszędzie (sprzedaż,
+   zwroty, alerty, do zamówienia, stany, dostawcy). Samo dopasowanie liczone
+   w core/search.js (ID ściśle, nazwa częściowo). */
+.table-search-row{margin-bottom:10px;}
+.table-search{
+  font-family:'Inter',sans-serif;font-size:13.5px;padding:8px 12px;border:1px solid #DCD3C0;
+  border-radius:6px;background:#fff;color:var(--ink);width:100%;max-width:280px;
+}
+.table-search::placeholder{color:#ADA694;}
+
 /* overflow-x:auto zamiast hidden — widoki z większą liczbą kolumn mogą być
    szersze niż kontener; przewijanie w poziomie zamiast przycinania gwarantuje,
    że żadna kolumna nie zniknie, niezależnie od szerokości ekranu. Brak sztywnego

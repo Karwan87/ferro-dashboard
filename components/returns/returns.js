@@ -2,6 +2,7 @@ import { navigateTo } from '../../core/router.js';
 import { getReturnedProducts, getSuppliersRanking, getSupplierProducts, getStoreWideIndicator, getSettlement, getProductReturnDetail } from '../../core/returnsData.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
 import { openModal } from '../../core/modal.js';
+import { matchesProductQuery } from '../../core/search.js';
 
 const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
 const MONTHS_YEAR = 2026;
@@ -34,6 +35,11 @@ export function openReturnsCurrentMonth(){
 
 let currentPeriodKey = null;
 let currentSupplierRows = [];
+let currentProductsRows = [];
+let currentProductsSearch = '';
+let currentSupplierProductsRows = [];
+let currentSupplierProductsSearch = '';
+let currentSupplierProductsName = '';
 
 export function openReturnsHub(){
   navigateTo('screen-returns-periods', 'Zwroty');
@@ -77,6 +83,9 @@ function periodDef(){
 /* ---------- RAPORT 1: najczęściej zwracany produkt ---------- */
 export async function openReturnsProducts(){
   navigateTo('screen-returns-table', 'Najczęściej zwracany produkt · ' + periodDef().label);
+  currentProductsSearch = '';
+  document.getElementById('retProductsSearch').value = '';
+  document.getElementById('retProductsSearchRow').style.display = '';
   const tbody = document.getElementById('retTableBody');
   const totalsEl = document.getElementById('retTableTotals');
   totalsEl.style.display = 'none';
@@ -88,37 +97,49 @@ export async function openReturnsProducts(){
 
   try{
     const { rows, totals } = await getReturnedProducts(periodDef().period);
+    currentProductsRows = rows;
     totalsEl.innerHTML = `
       <div><div class="modal-stat-label">Utracona marża · ${periodDef().label}</div><div class="modal-stat-val">${fmtPLN(totals.lostMargin)}</div></div>
       <div><div class="modal-stat-label">Wartość wrócona na stan</div><div class="modal-stat-val">${fmtPLN(totals.restockValue)}</div></div>
     `;
     totalsEl.style.display = 'grid';
-    document.getElementById('retTableInfo').textContent = `${rows.length} produktów · sortowanie: zwrócone sztuki malejąco`
-      + (isCurrentMonthPeriod(periodDef().period) ? ` · ${CURRENT_MONTH_NOTE}` : '');
-    if(rows.length === 0){
-      tbody.innerHTML = `<tr><td colspan="3" class="empty-state">Brak zwrotów w tym okresie.</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = rows.map((r, i)=>{
-      const p = r.product;
-      const thumb = imgUrl(p.img) || PLACEHOLDER;
-      return `<tr onclick="openReturnsProductModal(${p.id})">
-        <td class="rank sticky-col">${i + 1}</td>
-        <td class="identity-col sticky-col">
-          <div class="prod-cell">
-            <img class="prod-thumb" src="${thumb}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
-            <div>
-              <div class="prod-name">${p.name}</div>
-              <div class="prod-id">ID ${p.id}${p.kod ? ' · ' + p.kod : ''}</div>
-            </div>
-          </div>
-        </td>
-        <td class="num">${r.returnedQty}</td>
-      </tr>`;
-    }).join('');
+    renderProductsTable();
   } catch(err){
     renderTableError(err, 3);
   }
+}
+
+export function applyReturnsProductsSearch(value){
+  currentProductsSearch = value;
+  renderProductsTable();
+}
+
+function renderProductsTable(){
+  const tbody = document.getElementById('retTableBody');
+  const rows = currentProductsRows.filter(r => matchesProductQuery(currentProductsSearch, r.product.id, r.product.name));
+  document.getElementById('retTableInfo').textContent = `${rows.length} produktów · sortowanie: zwrócone sztuki malejąco`
+    + (isCurrentMonthPeriod(periodDef().period) ? ` · ${CURRENT_MONTH_NOTE}` : '');
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="3" class="empty-state">${currentProductsSearch ? 'Brak produktów pasujących do wyszukiwania.' : 'Brak zwrotów w tym okresie.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i)=>{
+    const p = r.product;
+    const thumb = imgUrl(p.img) || PLACEHOLDER;
+    return `<tr onclick="openReturnsProductModal(${p.id})">
+      <td class="rank sticky-col">${i + 1}</td>
+      <td class="identity-col sticky-col">
+        <div class="prod-cell">
+          <img class="prod-thumb" src="${thumb}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
+          <div>
+            <div class="prod-name">${p.name}</div>
+            <div class="prod-id">ID ${p.id}${p.kod ? ' · ' + p.kod : ''}</div>
+          </div>
+        </div>
+      </td>
+      <td class="num">${r.returnedQty}</td>
+    </tr>`;
+  }).join('');
 }
 
 /* Modal produktu otwierany z raportu "Najczęściej zwracany produkt" — jak w
@@ -164,6 +185,9 @@ function buildReturnDetailHtml(d){
 /* ---------- RAPORT 2: dostawca z największym % zwrotów ---------- */
 export async function openReturnsSuppliers(){
   navigateTo('screen-returns-table', 'Dostawca z największym % zwrotów · ' + periodDef().label);
+  // Ta lista to dostawcy, nie produkty — szukajka produktów (z RAPORTU 1
+  // powyżej) tu nie ma zastosowania.
+  document.getElementById('retProductsSearchRow').style.display = 'none';
   const tbody = document.getElementById('retTableBody');
   const totalsEl = document.getElementById('retTableTotals');
   totalsEl.style.display = 'none';
@@ -204,41 +228,55 @@ export async function openReturnsSupplierProducts(index){
   const supplier = currentSupplierRows[index];
   if(!supplier) return;
   navigateTo('screen-returns-supplier-table', supplier.name + ' · ' + periodDef().label);
+  currentSupplierProductsName = supplier.name;
+  currentSupplierProductsSearch = '';
+  document.getElementById('retSupplierProductsSearch').value = '';
   const tbody = document.getElementById('retSupplierTableBody');
   document.getElementById('retSupplierTableInfo').textContent = 'Ładowanie…';
   tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Ładowanie…</td></tr>`;
 
   try{
-    const rows = await getSupplierProducts(supplier.name, periodDef().period);
-    document.getElementById('retSupplierTableInfo').textContent =
-      `${rows.length} produktów dostawcy „${supplier.name}” · sortowanie: % zwrotów malejąco`
-      + (isCurrentMonthPeriod(periodDef().period) ? ` · ${CURRENT_MONTH_NOTE}` : '');
-    if(rows.length === 0){
-      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Brak sprzedaży ani zwrotów w tym okresie.</td></tr>`;
-      return;
-    }
-    tbody.innerHTML = rows.map((r, i)=>{
-      const p = r.product;
-      const thumb = imgUrl(p.img) || PLACEHOLDER;
-      return `<tr onclick="openReturnsProductModal(${p.id})">
-        <td class="rank sticky-col">${i + 1}</td>
-        <td class="identity-col sticky-col">
-          <div class="prod-cell">
-            <img class="prod-thumb" src="${thumb}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
-            <div>
-              <div class="prod-name">${p.name}</div>
-              <div class="prod-id">ID ${p.id}${p.kod ? ' · ' + p.kod : ''}</div>
-            </div>
-          </div>
-        </td>
-        <td class="num">${r.sold}</td>
-        <td class="num">${r.returned}</td>
-        <td class="num">${r.pct.toFixed(1)}%</td>
-      </tr>`;
-    }).join('');
+    currentSupplierProductsRows = await getSupplierProducts(supplier.name, periodDef().period);
+    renderSupplierProductsTable();
   } catch(err){
     renderTableError(err, 5, 'retSupplierTableInfo', 'retSupplierTableBody');
   }
+}
+
+export function applyReturnsSupplierProductsSearch(value){
+  currentSupplierProductsSearch = value;
+  renderSupplierProductsTable();
+}
+
+function renderSupplierProductsTable(){
+  const tbody = document.getElementById('retSupplierTableBody');
+  const rows = currentSupplierProductsRows.filter(r => matchesProductQuery(currentSupplierProductsSearch, r.product.id, r.product.name));
+  document.getElementById('retSupplierTableInfo').textContent =
+    `${rows.length} produktów dostawcy „${currentSupplierProductsName}” · sortowanie: % zwrotów malejąco`
+    + (isCurrentMonthPeriod(periodDef().period) ? ` · ${CURRENT_MONTH_NOTE}` : '');
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${currentSupplierProductsSearch ? 'Brak produktów pasujących do wyszukiwania.' : 'Brak sprzedaży ani zwrotów w tym okresie.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i)=>{
+    const p = r.product;
+    const thumb = imgUrl(p.img) || PLACEHOLDER;
+    return `<tr onclick="openReturnsProductModal(${p.id})">
+      <td class="rank sticky-col">${i + 1}</td>
+      <td class="identity-col sticky-col">
+        <div class="prod-cell">
+          <img class="prod-thumb" src="${thumb}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
+          <div>
+            <div class="prod-name">${p.name}</div>
+            <div class="prod-id">ID ${p.id}${p.kod ? ' · ' + p.kod : ''}</div>
+          </div>
+        </div>
+      </td>
+      <td class="num">${r.sold}</td>
+      <td class="num">${r.returned}</td>
+      <td class="num">${r.pct.toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderTableError(err, colspan, infoElId = 'retTableInfo', bodyElId = 'retTableBody'){

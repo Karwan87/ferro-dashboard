@@ -140,6 +140,9 @@
 
   <!-- SCREEN 3: TABLE -->
   <div class="screen" id="screen-table">
+    <div class="table-search-row">
+      <input type="text" class="table-search" id="tableSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applySalesSearch(this.value)">
+    </div>
     <div class="table-meta">
       <p id="tableInfo"></p>
       <p>Kliknij nagłówek kolumny, by zmienić sortowanie</p>
@@ -282,6 +285,9 @@
 
   <!-- SCREEN 9: ZWROTY — TABELA RAPORTU (produkt / dostawca) -->
   <div class="screen" id="screen-returns-table">
+    <div class="table-search-row" id="retProductsSearchRow">
+      <input type="text" class="table-search" id="retProductsSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applyReturnsProductsSearch(this.value)">
+    </div>
     <div class="table-meta">
       <p id="retTableInfo"></p>
       <p>Kliknij nagłówek kolumny, by zmienić sortowanie</p>
@@ -302,6 +308,9 @@
        widoku pokazywałby nieodświeżoną (starą) zawartość na ekranie listy dostawców,
        bo router tylko przełącza widoczność ekranów, nie każe im się przerenderować. -->
   <div class="screen" id="screen-returns-supplier-table">
+    <div class="table-search-row">
+      <input type="text" class="table-search" id="retSupplierProductsSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applyReturnsSupplierProductsSearch(this.value)">
+    </div>
     <div class="table-meta">
       <p id="retSupplierTableInfo"></p>
       <p>Kliknij nagłówek kolumny, by zmienić sortowanie</p>
@@ -388,6 +397,9 @@
       </select>
     </div>
 
+    <div class="table-search-row">
+      <input type="text" class="table-search" id="alertsSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applyAlertsSearch(this.value)">
+    </div>
     <div class="table-meta">
       <p id="alertsTableInfo"></p>
     </div>
@@ -465,6 +477,9 @@
   <!-- SCREEN: DOSTAWCY — SZCZEGÓŁY DOSTAWCY (lista produktów) -->
   <div class="screen" id="screen-suppliers-detail">
     <p class="finance-range-label" id="suppliersDetailNote"></p>
+    <div class="table-search-row">
+      <input type="text" class="table-search" id="suppliersDetailSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applySupplierDetailSearch(this.value)">
+    </div>
     <div class="table-meta">
       <p id="suppliersDetailInfo"></p>
     </div>
@@ -500,6 +515,9 @@
       <button class="pill" data-key="ordered" onclick="applyReorderFilter('ordered')">Już zamówione</button>
     </div>
 
+    <div class="table-search-row">
+      <input type="text" class="table-search" id="reorderSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applyReorderSearch(this.value)">
+    </div>
     <div class="table-meta">
       <p id="reorderTableInfo"></p>
     </div>
@@ -588,6 +606,9 @@
           <div class="stat-hero" id="stockDateSell"></div>
           <div class="stat-hero-label">wartość po cenie sprzedaży netto tego dnia</div>
         </div>
+      </div>
+      <div class="table-search-row">
+        <input type="text" class="table-search" id="stockDateSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applyStockDateSearch(this.value)">
       </div>
       <div class="table-meta">
         <p id="stockDateInfo"></p>

@@ -1,6 +1,7 @@
 import { navigateTo } from '../../core/router.js';
 import { products } from '../../core/data.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
+import { matchesProductQuery } from '../../core/search.js';
 
 /* Katalog kolumn możliwych do pokazania w tabeli — każdy widok (VIEW_DEFS)
    wybiera swój podzbiór przez pole "columns" oraz decyduje, czy dana
@@ -90,6 +91,7 @@ function unitsFor(p, key){
 
 let currentView = null;
 let sortState = {key:'units', dir:'desc'};
+let currentSearch = '';
 
 export function openCategory(){
   navigateTo('screen-category', 'Dane sprzedażowe');
@@ -97,6 +99,8 @@ export function openCategory(){
 
 export function openView(key){
   currentView = key;
+  currentSearch = '';
+  document.getElementById('tableSearch').value = '';
   const def = VIEW_DEFS[key];
   if(def.mode==='highRet') sortState = {key:'retUnits', dir:'desc'};
   else if(def.mode==='noSale') sortState = {key:'capital', dir:'desc'};
@@ -106,6 +110,11 @@ export function openView(key){
   else sortState = {key:'units', dir:'desc'};
   navigateTo('screen-table', def.title);
   renderTableHead();
+  renderTable();
+}
+
+export function applySalesSearch(value){
+  currentSearch = value;
   renderTable();
 }
 
@@ -165,12 +174,17 @@ function computeRows(){
     }
   }
 
+  if(currentSearch) rows = rows.filter(r => matchesProductQuery(currentSearch, r.p.id, r.p.name));
+
   rows.sort((a,b)=>{
     const dir = sortState.dir==='asc'?1:-1;
     return (a[sortState.key]-b[sortState.key])*dir;
   });
 
-  return rows.slice(0,50);
+  // Bez szukajki: top 50 wg sortowania (jak dotąd). Z aktywną szukajką: bez
+  // limitu — inaczej szukany produkt mógłby "wypaść" poza top 50 i nie
+  // pokazać się wcale, mimo że istnieje.
+  return currentSearch ? rows : rows.slice(0,50);
 }
 
 export function setSort(key){

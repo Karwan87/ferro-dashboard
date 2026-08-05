@@ -3,15 +3,19 @@ import { getReorderList } from '../../core/reorderData.js';
 import { getAlertsForProduct } from '../../core/alertsData.js';
 import { openModal } from '../../core/modal.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
+import { matchesProductQuery } from '../../core/search.js';
 
 const ALERT_WINDOW_DAYS = 30; // ta sama liczba dni co przy budowie listy (getReorderList(30))
 
 let currentRows = [];
 let currentFilter = 'all';
+let currentSearch = '';
 
 export async function openReorderHub(){
   navigateTo('screen-reorder-dashboard', 'Do zamówienia / braki');
   currentFilter = 'all';
+  currentSearch = '';
+  document.getElementById('reorderSearch').value = '';
   highlightFilter('all');
 
   ['reorderCount', 'reorderValueBraku', 'reorderValueDomowienia'].forEach(id => {
@@ -47,6 +51,11 @@ export function applyReorderFilter(key){
   renderTable();
 }
 
+export function applyReorderSearch(value){
+  currentSearch = value;
+  renderTable();
+}
+
 function highlightFilter(key){
   document.querySelectorAll('#reorderFilters .pill').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.key === key);
@@ -60,11 +69,12 @@ function renderTable(){
   let rows = currentRows;
   if(currentFilter === 'waiting') rows = rows.filter(r => !r.zamowiono);
   else if(currentFilter === 'ordered') rows = rows.filter(r => r.zamowiono);
+  if(currentSearch) rows = rows.filter(r => matchesProductQuery(currentSearch, r.id, r.name));
 
   if(rows.length === 0){
     info.textContent = currentRows.length === 0
       ? 'Brak produktów oznaczonych do domówienia.'
-      : 'Brak produktów dla wybranego filtra.';
+      : 'Brak produktów dla wybranego filtra/wyszukiwania.';
     tbody.innerHTML = `<tr><td colspan="11" class="empty-state">Brak produktów.</td></tr>`;
     return;
   }

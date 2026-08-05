@@ -1,6 +1,7 @@
 import { navigateTo } from '../../core/router.js';
 import { getLiveStockSummary, getProductMetaMap, getStockForDate, getStockSeries } from '../../core/stockData.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
+import { matchesProductQuery } from '../../core/search.js';
 
 const CHART_PERIODS = { d7: 7, d14: 14, d30: 30, d60: 60, d90: 90 };
 const COLOR_BUY = '#8B2942';   // --berry
@@ -10,6 +11,10 @@ const GRID_COLOR = '#E4DCC9';  // spójne z .cf-total-row / innymi hairline na j
 
 let currentChartPeriod = 'd30';
 let lastSeries = [];
+let currentDateRows = [];
+let currentDateMetaMap = new Map();
+let currentDateResult = null;
+let currentDateSearch = '';
 
 function isoDate(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function fmtDatePlShort(iso){ const [, m, d] = iso.split('-'); return `${d}.${m}`; }
@@ -59,6 +64,8 @@ export async function showStockForDate(){
   document.getElementById('stockDateResultsWrap').hidden = false;
   document.getElementById('stockDateToggle').hidden = false;
   document.getElementById('stockDateToggle').textContent = 'Schowaj tabelę';
+  currentDateSearch = '';
+  document.getElementById('stockDateSearch').value = '';
   ['stockDateQty', 'stockDateBuy', 'stockDateSell'].forEach(id => { document.getElementById(id).textContent = '…'; });
   info.textContent = 'Ładowanie…';
   tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Ładowanie…</td></tr>`;
@@ -72,52 +79,73 @@ export async function showStockForDate(){
       return;
     }
 
-    const rows = result.rows.filter(r => r.id).sort((a, b) => b.ilosc - a.ilosc);
+    currentDateResult = result;
+    currentDateMetaMap = metaMap;
+    currentDateRows = result.rows.filter(r => r.id).sort((a, b) => b.ilosc - a.ilosc);
 
-    const totalQty = rows.reduce((sum, r) => sum + r.ilosc, 0);
-    const totalBuy = rows.reduce((sum, r) => sum + r.wartoscZakup, 0);
-    const hasSell = rows.some(r => r.wartoscSprzedaz != null);
-    const totalSell = hasSell ? rows.reduce((sum, r) => sum + (r.wartoscSprzedaz || 0), 0) : null;
+    const totalQty = currentDateRows.reduce((sum, r) => sum + r.ilosc, 0);
+    const totalBuy = currentDateRows.reduce((sum, r) => sum + r.wartoscZakup, 0);
+    const hasSell = currentDateRows.some(r => r.wartoscSprzedaz != null);
+    const totalSell = hasSell ? currentDateRows.reduce((sum, r) => sum + (r.wartoscSprzedaz || 0), 0) : null;
     document.getElementById('stockDateQty').textContent = totalQty.toLocaleString('pl-PL');
     document.getElementById('stockDateBuy').textContent = fmtPLN(totalBuy);
     document.getElementById('stockDateSell').textContent = totalSell == null ? '—' : fmtPLN(totalSell);
 
-    info.textContent = result.exact
-      ? `${rows.length} produktów · stan na ${fmtDatePlFull(result.date)}`
-      : `Brak danych dokładnie na ${fmtDatePlFull(result.requestedDate)} — pokazuję najbliższą wcześniejszą dostępną datę: ${fmtDatePlFull(result.date)} (${rows.length} produktów)`;
-
-    if(rows.length === 0){
-      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Brak produktów w tym wpisie.</td></tr>`;
-      return;
-    }
-
-    tbody.innerHTML = rows.map((r, i) => {
-      const meta = metaMap.get(r.id);
-      const thumb = meta ? (imgUrl(meta.img) || PLACEHOLDER) : PLACEHOLDER;
-      const name = meta ? meta.name : ('Produkt #' + r.id);
-      const rowAttrs = meta
-        ? `onclick="openModal(${r.id}, true)"`
-        : '';
-      return `<tr ${rowAttrs}>
-        <td class="rank sticky-col">${i + 1}</td>
-        <td class="identity-col sticky-col">
-          <div class="prod-cell">
-            <img class="prod-thumb" src="${thumb}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
-            <div>
-              <div class="prod-name">${name}</div>
-              <div class="prod-id">ID ${r.id}</div>
-            </div>
-          </div>
-        </td>
-        <td class="num">${r.ilosc.toLocaleString('pl-PL')}</td>
-        <td class="num">${fmtPLN(r.wartoscZakup)}</td>
-        <td class="num">${r.wartoscSprzedaz == null ? '—' : fmtPLN(r.wartoscSprzedaz)}</td>
-      </tr>`;
-    }).join('');
+    renderStockDateTable();
   } catch(err){
     info.textContent = `Błąd pobierania danych (${err.message}).`;
     tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Błąd.</td></tr>`;
   }
+}
+
+export function applyStockDateSearch(value){
+  currentDateSearch = value;
+  renderStockDateTable();
+}
+
+function renderStockDateTable(){
+  const info = document.getElementById('stockDateInfo');
+  const tbody = document.getElementById('stockDateTableBody');
+  const result = currentDateResult;
+  const metaMap = currentDateMetaMap;
+
+  const rows = currentDateRows.filter(r => {
+    const meta = metaMap.get(r.id);
+    return matchesProductQuery(currentDateSearch, r.id, meta ? meta.name : ('Produkt #' + r.id));
+  });
+
+  info.textContent = result.exact
+    ? `${rows.length} produktów · stan na ${fmtDatePlFull(result.date)}`
+    : `Brak danych dokładnie na ${fmtDatePlFull(result.requestedDate)} — pokazuję najbliższą wcześniejszą dostępną datę: ${fmtDatePlFull(result.date)} (${rows.length} produktów)`;
+
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${currentDateSearch ? 'Brak produktów pasujących do wyszukiwania.' : 'Brak produktów w tym wpisie.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const meta = metaMap.get(r.id);
+    const thumb = meta ? (imgUrl(meta.img) || PLACEHOLDER) : PLACEHOLDER;
+    const name = meta ? meta.name : ('Produkt #' + r.id);
+    const rowAttrs = meta
+      ? `onclick="openModal(${r.id}, true)"`
+      : '';
+    return `<tr ${rowAttrs}>
+      <td class="rank sticky-col">${i + 1}</td>
+      <td class="identity-col sticky-col">
+        <div class="prod-cell">
+          <img class="prod-thumb" src="${thumb}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
+          <div>
+            <div class="prod-name">${name}</div>
+            <div class="prod-id">ID ${r.id}</div>
+          </div>
+        </div>
+      </td>
+      <td class="num">${r.ilosc.toLocaleString('pl-PL')}</td>
+      <td class="num">${fmtPLN(r.wartoscZakup)}</td>
+      <td class="num">${r.wartoscSprzedaz == null ? '—' : fmtPLN(r.wartoscSprzedaz)}</td>
+    </tr>`;
+  }).join('');
 }
 
 export function applyStockChartPeriod(key){
