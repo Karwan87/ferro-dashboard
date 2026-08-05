@@ -49,19 +49,19 @@ export function getSupplierSalesRanking(){
    WAŻNE: "Sprzedaż 30days" i "Returns 30days" to dwa NIEZALEŻNE okna
    czasowe (sprzedaże i zwroty policzone wg własnej daty), nie kohorta
    "ile z tego, co sprzedano w tym oknie, wróciło" — zwrot policzony w tym
-   oknie może dotyczyć sprzedaży sprzed więcej niż 30 dni. Dlatego wynik
-   może przekroczyć 100% (wróciło więcej sztuk niż sprzedano nowych w tym
-   samym okresie) — to prawidłowe, nie ucinamy tego do 100%, bo to realny
-   sygnał (potwierdzone też przez surową kolumnę "% returns" w arkuszu). */
+   oknie może dotyczyć sprzedaży sprzed więcej niż 30 dni, więc surowy
+   iloraz potrafi przekroczyć 100%. Na życzenie właściciela wynik jest
+   ucinany na 100% (Math.min) — powyżej tego progu liczba przestaje nieść
+   dodatkową informację, tylko myli. */
 export function getSupplierReturnsRanking(){
   const groups = groupBySupplier();
   return [...groups.entries()].map(([dostawca, items]) => {
     const sprzedaz = items.reduce((sum, p) => sum + p.s30, 0);
     const zwroty = items.reduce((sum, p) => sum + p.ret30, 0);
     const detailRows = items
-      .map(p => ({ id: p.id, name: p.name, img: p.img, metricValue: p.s30 > 0 ? (p.ret30 / p.s30 * 100) : null, s30: p.s30, ret30: p.ret30 }))
+      .map(p => ({ id: p.id, name: p.name, img: p.img, metricValue: p.s30 > 0 ? Math.min(p.ret30 / p.s30 * 100, 100) : null, s30: p.s30, ret30: p.ret30 }))
       .sort((a, b) => (b.metricValue ?? -1) - (a.metricValue ?? -1));
-    return { dostawca, value: sprzedaz > 0 ? (zwroty / sprzedaz * 100) : null, sprzedaz, zwroty, skuCount: items.length, detailRows };
+    return { dostawca, value: sprzedaz > 0 ? Math.min(zwroty / sprzedaz * 100, 100) : null, sprzedaz, zwroty, skuCount: items.length, detailRows };
   }).filter(r => r.value != null).sort((a, b) => b.value - a.value);
 }
 

@@ -26,7 +26,7 @@ const REPORTS = {
     metricLabel: '% zwrotów (30 dni, ważone sprzedażą)',
     fmtValue: v => v.toFixed(1) + '%',
     fmtDetail: v => v == null ? '—' : v.toFixed(1) + '%',
-    note: 'Liczone jako: suma zwrotów z ostatnich 30 dni ÷ suma sprzedaży z ostatnich 30 dni (dla dostawcy — ważone sprzedażą, więc 1 sprzedana i 1 zwrócona sztuka u małego dostawcy nie wygrywa z dostawcą sprzedającym tysiące sztuk; dla pojedynczego produktu — po prostu jego własne zwroty ÷ jego własna sprzedaż). Sprzedaż i zwroty to dwa NIEZALEŻNE okna czasowe — zwrot policzony w tym oknie może dotyczyć sprzedaży sprzed więcej niż 30 dni. Dlatego wynik może przekroczyć 100%, gdy w danym okresie wróciło więcej sztuk, niż sprzedano nowych — to prawidłowy, niezaokrąglony sygnał, nie błąd.',
+    note: 'Liczone jako: suma zwrotów z ostatnich 30 dni ÷ suma sprzedaży z ostatnich 30 dni (dla dostawcy — ważone sprzedażą, więc 1 sprzedana i 1 zwrócona sztuka u małego dostawcy nie wygrywa z dostawcą sprzedającym tysiące sztuk; dla pojedynczego produktu — po prostu jego własne zwroty ÷ jego własna sprzedaż). Sprzedaż i zwroty to dwa NIEZALEŻNE okna czasowe — zwrot policzony w tym oknie może dotyczyć sprzedaży sprzed więcej niż 30 dni, więc surowy iloraz potrafi wyjść powyżej 100%. Wynik jest ucinany na maksymalnie 100%.',
     extraColumns: [
       { label: 'Sprzedaż (30 dni)', get: r => r.sprzedaz, fmt: szt },
       { label: 'Zwroty (30 dni)', get: r => r.zwroty, fmt: szt },

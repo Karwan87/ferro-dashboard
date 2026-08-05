@@ -131,6 +131,10 @@ body{
 .modal-title{font-family:'Fraunces',serif;font-size:21px;font-weight:600;margin:4px 0 16px;line-height:1.25;}
 .modal-close + .modal-title{padding-right:34px;}
 .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px;margin-bottom:18px;}
+/* Modal produktu dzieli statystyki na kilka .modal-grid pod rząd (finanse/szt.,
+   bieżący okres, cała historia) — odstęp+kreska między nimi, żeby było widać
+   gdzie kończy się jedna kategoria a zaczyna kolejna. */
+.modal-grid + .modal-grid{border-top:1px solid #EFE9DC;padding-top:14px;}
 .modal-stat-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:#6B6670;margin-bottom:3px;}
 .modal-stat-val{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;}
 .modal-close{

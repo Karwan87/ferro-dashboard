@@ -1,5 +1,5 @@
 import { parseNum, parseIntSafe, getCell } from './format.js';
-import { fetchCsv, authedFetch } from './csv.js';
+import { fetchCsv, fetchCsvRaw, col, authedFetch } from './csv.js';
 import { DATA_BASE } from './config.js';
 
 /* =========================================================
@@ -9,7 +9,27 @@ import { DATA_BASE } from './config.js';
    ========================================================= */
 const CSV_SALES  = DATA_BASE + 'sprzedaz.csv';
 const CSV_IMAGES = DATA_BASE + 'zdjecia.csv';
+const CSV_ORDERS  = DATA_BASE + 'ordery.csv';
+const CSV_RETURNS = DATA_BASE + 'zwroty.csv';
+const CSV_DELIVERIES = DATA_BASE + 'dostawy.csv';
 const LAST_UPDATED_URL = DATA_BASE + 'last_updated.txt';
+
+/* "Sprzedane (cała historia)" NIE bierzemy już z arkusza "zdjęcia" (kolumna
+   "Sprzedane") — to pole okazało się niezależnie utrzymywane i rozjeżdżało
+   się z rzeczywistym rejestrem zamówień (potwierdzone na ID 5763: pole
+   pokazywało 51 szt., realnie z Ordery/Zwroty wychodziło 79 sprzedanych /
+   29 zwróconych). Liczymy więc wprost z tych samych arkuszy, z których
+   korzysta moduł Zwroty — Ordery: A ID produktu, F ilość; Zwroty: E ID
+   produktu, H ilość. */
+const ORD_HIST = { productId: col('A'), qty: col('F') };
+const RET_HIST = { productId: col('E'), qty: col('H') };
+
+/* Arkusz "dostawy" (zakładka "Logi") to ogólny dziennik ruchów magazynowych,
+   nie tylko dostaw — ma nazwane nagłówki (w przeciwieństwie do Ordery/Zwroty),
+   więc czytamy go jak sprzedaz.csv/zdjecia.csv (getCell), i filtrujemy tylko
+   wiersze z kolumny "Opis" == "Dostawa". Inne wartości w "Opis" (sprzedaż,
+   korekty, przesunięcia wewnętrzne...) świadomie pomijamy. */
+const DELIVERY_OPIS_VALUE = 'Dostawa';
 
 export let products = [];
 
@@ -32,7 +52,9 @@ export async function loadData(){
   errorSlot.innerHTML = '';
 
   try{
-    const [salesRows, imgRows, lastUpdatedText] = await Promise.all([fetchCsv(CSV_SALES), fetchCsv(CSV_IMAGES), fetchLastUpdated()]);
+    const [salesRows, imgRows, orderRows, returnRows, deliveryRows, lastUpdatedText] = await Promise.all([
+      fetchCsv(CSV_SALES), fetchCsv(CSV_IMAGES), fetchCsvRaw(CSV_ORDERS), fetchCsvRaw(CSV_RETURNS), fetchCsv(CSV_DELIVERIES), fetchLastUpdated(),
+    ]);
 
     const dbMap = {};
     imgRows.forEach(r=>{
@@ -41,8 +63,28 @@ export async function loadData(){
       dbMap[id] = {
         img: getCell(r,'Zdjęcie','Zdjecie') || null,
         odslony: parseIntSafe(getCell(r,'Odsłony','Odslony')),
-        sprzedaneHist: parseIntSafe(getCell(r,'Sprzedane')),
       };
+    });
+
+    const soldHistById = {};
+    orderRows.forEach(row=>{
+      const id = parseIntSafe(row[ORD_HIST.productId]);
+      if(!id) return;
+      soldHistById[id] = (soldHistById[id] || 0) + parseIntSafe(row[ORD_HIST.qty]);
+    });
+    const returnedHistById = {};
+    returnRows.forEach(row=>{
+      const id = parseIntSafe(row[RET_HIST.productId]);
+      if(!id) return;
+      returnedHistById[id] = (returnedHistById[id] || 0) + parseIntSafe(row[RET_HIST.qty]);
+    });
+
+    const deliveredHistById = {};
+    deliveryRows.forEach(r=>{
+      if(getCell(r,'Opis').trim() !== DELIVERY_OPIS_VALUE) return;
+      const id = parseIntSafe(getCell(r,'Produkt'));
+      if(!id) return;
+      deliveredHistById[id] = (deliveredHistById[id] || 0) + parseIntSafe(getCell(r,'Ilość'));
     });
 
     products = salesRows
@@ -85,7 +127,9 @@ export async function loadData(){
           dostawca: getCell(r,'Dostawca') || null,
           img: dbMap[id]?.img || null,
           odslony: dbMap[id]?.odslony || 0,
-          sprzedaneHist: dbMap[id]?.sprzedaneHist || 0,
+          sprzedaneHist: soldHistById[id] || 0,
+          zwroconoHist: returnedHistById[id] || 0,
+          dostarczonoHist: deliveredHistById[id] || 0,
         };
       })
       .filter(Boolean);
@@ -101,7 +145,7 @@ export async function loadData(){
     flagText.textContent = 'Błąd pobierania';
     errorSlot.innerHTML = `<div class="error-box">
       Nie udało się pobrać danych z Google Sheets (${err.message}).
-      Sprawdź, czy obie zakładki są nadal opublikowane (Plik → Udostępnij → Opublikuj w internecie) i czy łącza CSV się nie zmieniły.
+      Sprawdź, czy zakładki (Panel, Zdjęcia, Ordery, Zwroty, Logi) są nadal opublikowane (Plik → Udostępnij → Opublikuj w internecie) i czy łącza CSV się nie zmieniły.
       <br><button class="refresh-btn" onclick="loadData()">↻ Spróbuj ponownie</button>
     </div>`;
   }
