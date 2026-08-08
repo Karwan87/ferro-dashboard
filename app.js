@@ -6,8 +6,14 @@ import { openCategory, openView, setSort, applySalesSearch } from './components/
 import { openCustomersHub, openCustomersYear, openCustomersRolling, openCustomersView, setCustomersSort, openCustomerModal, closeCustomerModal } from './components/customers/customers.js';
 import { openReturnsHub, openReturnsMonths, openReturnsCurrentMonth, openReturnsPeriod, openReturnsProducts, openReturnsProductModal, applyReturnsProductsSearch, openReturnsSuppliers, openReturnsSupplierProducts, applyReturnsSupplierProductsSearch, openReturnsIndicator, openReturnsSettlement } from './components/returns/returns.js';
 import { openAlertsHub, openAlertsPeriod, filterAlertsBySupplier, applyAlertsSearch } from './components/alerts/alerts.js';
-import { openFinanceHub, openFinanceSales, applyFinancePreset, applyFinanceCustomRange } from './components/finance/finance.js';
-import { openCashflowHub, applyCashflowFilter, applyCashflowPickedWeek, applyCashflowOverrides } from './components/finance/cashflow.js';
+import { openFinanceHub } from './components/finance/finance.js';
+import { openCashflowHub, openCashflowTabular, openCashflowYear, openCashflowMonth, applyCashflowFilter, applyCashflowPickedWeek, applyCashflowOverrides } from './components/finance/cashflow.js';
+import {
+  openSalesBalanceHub, openSalesBalanceCurrentMonth, openSalesBalanceYear, openSalesBalanceMonths,
+  openSalesBalancePeriod, applySalesBalancePreset, applySalesBalanceCustomRange, applySalesBalanceSingleDate, applySalesBalancePromoOverride,
+  applySalesBalanceCalendarDay, savePromoBudgetDefault, applySalesBalanceOtherCosts, applySalesBalanceReturnsMode, openSalesBalanceSimulation, applySalesBalanceSimMode, runSimulation, saveSimDefault,
+  toggleSimKeyEdit, applySimKeyInput, resetSimKeyAssumptions,
+} from './components/finance/salesBalance.js';
 import { openStockHub, showStockForDate, applyStockChartPeriod, toggleStockChartTable, toggleStockDateResults, applyStockDateSearch } from './components/stock/stock.js';
 import { openSuppliersHub, openSuppliersRanking, openSupplierDetail, applySupplierDetailSearch, openSuppliersDemandHub, applySuppliersDemandPeriod } from './components/suppliers/suppliers.js';
 import { openReorderHub, applyReorderFilter, applyReorderSearch, openReorderProductModal } from './components/reorder/reorder.js';
@@ -46,10 +52,30 @@ window.openAlertsPeriod = openAlertsPeriod;
 window.filterAlertsBySupplier = filterAlertsBySupplier;
 window.applyAlertsSearch = applyAlertsSearch;
 window.openFinanceHub = openFinanceHub;
-window.openFinanceSales = openFinanceSales;
-window.applyFinancePreset = applyFinancePreset;
-window.applyFinanceCustomRange = applyFinanceCustomRange;
+window.openSalesBalanceHub = openSalesBalanceHub;
+window.openSalesBalanceCurrentMonth = openSalesBalanceCurrentMonth;
+window.openSalesBalanceYear = openSalesBalanceYear;
+window.openSalesBalanceMonths = openSalesBalanceMonths;
+window.openSalesBalancePeriod = openSalesBalancePeriod;
+window.applySalesBalancePreset = applySalesBalancePreset;
+window.applySalesBalanceCustomRange = applySalesBalanceCustomRange;
+window.applySalesBalanceSingleDate = applySalesBalanceSingleDate;
+window.applySalesBalancePromoOverride = applySalesBalancePromoOverride;
+window.applySalesBalanceCalendarDay = applySalesBalanceCalendarDay;
+window.savePromoBudgetDefault = savePromoBudgetDefault;
+window.applySalesBalanceOtherCosts = applySalesBalanceOtherCosts;
+window.applySalesBalanceReturnsMode = applySalesBalanceReturnsMode;
+window.openSalesBalanceSimulation = openSalesBalanceSimulation;
+window.applySalesBalanceSimMode = applySalesBalanceSimMode;
+window.runSimulation = runSimulation;
+window.saveSimDefault = saveSimDefault;
+window.toggleSimKeyEdit = toggleSimKeyEdit;
+window.applySimKeyInput = applySimKeyInput;
+window.resetSimKeyAssumptions = resetSimKeyAssumptions;
 window.openCashflowHub = openCashflowHub;
+window.openCashflowTabular = openCashflowTabular;
+window.openCashflowYear = openCashflowYear;
+window.openCashflowMonth = openCashflowMonth;
 window.applyCashflowFilter = applyCashflowFilter;
 window.applyCashflowPickedWeek = applyCashflowPickedWeek;
 window.applyCashflowOverrides = applyCashflowOverrides;

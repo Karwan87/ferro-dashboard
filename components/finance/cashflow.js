@@ -1,10 +1,16 @@
 import { navigateTo } from '../../core/router.js';
 import { getCashflowStats } from '../../core/cashflowData.js';
-import { fmtPLN } from '../../core/format.js';
+import { fmtPLN, groupThousands } from '../../core/format.js';
+import { getNumPref, setNumPref, getStrPref, setStrPref } from '../../core/prefs.js';
+
+const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+const WEEKDAY_NAMES = ['Pon','Wt','Śr','Czw','Pt','Sob','Nd'];
+const CF_YEAR = 2026;
 
 function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
 function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
 function fmtDate(d){ return d.toLocaleDateString('pl-PL'); }
+function fmtPLNCompact(v){ return (v < 0 ? '-' : '') + groupThousands(String(Math.round(Math.abs(v)))) + ' zł'; }
 
 function mondayOf(date){
   const d = startOfDay(date);
@@ -89,25 +95,54 @@ const FILTERS = {
 
 let currentFilterKey = 'weekRemainder';
 
+/* Założenia planowanego przychodu (brak promocji/niska promocja/wysoka/NK) —
+   trwale zapamiętane (core/prefs.js), żeby widoki "2026" i kalendarz miesiąca
+   (bez własnych inputów) mogły korzystać z tych samych, ostatnio ustawionych
+   wartości co widok tabelaryczny, zamiast duplikować pola edycji wszędzie. */
+const OVERRIDE_DEFAULTS = { none: 15000, low: 40000, high: 60000 };
+
+function getPersistedOverrides(){
+  const nkRaw = getStrPref('cf.overrideNk', '');
+  return {
+    none: getNumPref('cf.overrideNone', OVERRIDE_DEFAULTS.none),
+    low: getNumPref('cf.overrideLow', OVERRIDE_DEFAULTS.low),
+    high: getNumPref('cf.overrideHigh', OVERRIDE_DEFAULTS.high),
+    nk: nkRaw === '' ? null : Number(nkRaw),
+  };
+}
+
 function readOverrides(){
   const val = (id) => {
     const v = document.getElementById(id).value;
     return v === '' ? null : Number(v);
   };
-  return {
-    none: val('cfNone') ?? 15000,
-    low: val('cfLow') ?? 40000,
-    high: val('cfHigh') ?? 60000,
+  const overrides = {
+    none: val('cfNone') ?? OVERRIDE_DEFAULTS.none,
+    low: val('cfLow') ?? OVERRIDE_DEFAULTS.low,
+    high: val('cfHigh') ?? OVERRIDE_DEFAULTS.high,
     nk: val('cfNk'),
   };
+  setNumPref('cf.overrideNone', overrides.none);
+  setNumPref('cf.overrideLow', overrides.low);
+  setNumPref('cf.overrideHigh', overrides.high);
+  setStrPref('cf.overrideNk', overrides.nk === null ? '' : String(overrides.nk));
+  return overrides;
 }
 
+/* Kafelek "Cash-Flow" na hubie Finansów — wybór między widokiem tabelarycznym
+   (pozostałe dni tygodnia/miesiąca, następny/poprzedni miesiąc) a widokiem
+   "2026" (miesiące -> dni całego roku). */
 export function openCashflowHub(){
-  navigateTo('screen-cashflow-dashboard', 'Finanse · Cash-Flow');
-  document.getElementById('cfNone').value = 15000;
-  document.getElementById('cfLow').value = 40000;
-  document.getElementById('cfHigh').value = 60000;
-  document.getElementById('cfNk').value = '';
+  navigateTo('screen-cashflow-periods', 'Finanse · Cash-Flow');
+}
+
+export function openCashflowTabular(){
+  navigateTo('screen-cashflow-dashboard', 'Finanse · Cash-Flow · Wersja tabelaryczna');
+  const overrides = getPersistedOverrides();
+  document.getElementById('cfNone').value = overrides.none;
+  document.getElementById('cfLow').value = overrides.low;
+  document.getElementById('cfHigh').value = overrides.high;
+  document.getElementById('cfNk').value = overrides.nk === null ? '' : overrides.nk;
   highlightActive('weekRemainder');
   applyCashflowFilter('weekRemainder');
 }
@@ -265,4 +300,95 @@ async function render(pair){
     document.getElementById('cfLiquidity').textContent = `Błąd pobierania danych (${err.message}).`;
     document.getElementById('cfLiquidity').style.color = 'var(--rust)';
   }
+}
+
+/* ---------- CASH-FLOW "2026" — miesiące i dni, plan i realizacja obok
+   siebie. W odróżnieniu od Bilansu (tylko fakty), Cash-Flow zawsze ma PLAN —
+   nawet dla przyszłości, to jego sens. REALIZACJA istnieje tylko dla
+   okresów, które już się zaczęły (computeRealRevenue naturalnie zwraca 0 dla
+   przyszłości) — dla okresów w całości przyszłych chowamy więc wiersze
+   "fakt" i kolorujemy ramkę wg planu, tak jak robi to już tryb
+   'prognozaOnly' filtrów w widoku tabelarycznym. Kolory/klasy (.sb-cal-*,
+   .sb-year-*) współdzielone z Bilansem sprzedaży dla spójnego wyglądu. */
+function cfCosts(s){ return s.marketingCost + s.invoicesDue + s.returnsOutflow; }
+
+function cfTileRows(stats, isFuture){
+  const costs = cfCosts(stats);
+  const plannedBalance = stats.plannedRevenue - costs;
+  const realBalance = stats.realRevenue - costs;
+  const balance = isFuture ? plannedBalance : realBalance;
+  const resultClass = balance >= 0 ? 'sb-cal-positive' : 'sb-cal-negative';
+  const resultColor = balance >= 0 ? 'var(--sage)' : 'var(--rust)';
+
+  const rows = [`<div class="sb-cal-row"><span>Sprzedaż plan</span><b>${fmtPLNCompact(stats.plannedRevenue)}</b></div>`];
+  if(!isFuture) rows.push(`<div class="sb-cal-row"><span>Sprzedaż fakt</span><b>${fmtPLNCompact(stats.realRevenue)}</b></div>`);
+  rows.push(`<div class="sb-cal-row sb-cal-gap"><span>Marketing</span><b>${fmtPLNCompact(stats.marketingCost)}</b></div>`);
+  rows.push(`<div class="sb-cal-row"><span>Faktury FV</span><b>${fmtPLNCompact(stats.invoicesDue)}</b></div>`);
+  rows.push(`<div class="sb-cal-row"><span>Zwroty</span><b>${fmtPLNCompact(stats.returnsOutflow)}</b></div>`);
+  if(isFuture){
+    rows.push(`<div class="sb-cal-row sb-cal-result"><span>Bilans plan</span><b style="color:${resultColor}">${fmtPLNCompact(plannedBalance)}</b></div>`);
+  } else {
+    rows.push(`<div class="sb-cal-row sb-cal-subtotal"><span>Bilans plan</span><b>${fmtPLNCompact(plannedBalance)}</b></div>`);
+    rows.push(`<div class="sb-cal-row sb-cal-result"><span>Bilans fakt</span><b style="color:${resultColor}">${fmtPLNCompact(realBalance)}</b></div>`);
+  }
+  return { html: rows.join(''), resultClass };
+}
+
+export async function openCashflowYear(){
+  navigateTo('screen-cashflow-year', 'Finanse · Cash-Flow · ' + CF_YEAR);
+  const grid = document.getElementById('cfYearGrid');
+  grid.innerHTML = '<p class="chart-loading">Ładowanie…</p>';
+
+  const overrides = getPersistedOverrides();
+  const today = startOfDay(new Date());
+  const tiles = await Promise.all(MONTH_NAMES.map(async (name, idx) => {
+    const start = new Date(CF_YEAR, idx, 1);
+    const end = new Date(CF_YEAR, idx + 1, 0);
+    const isFuture = start > today;
+    const stats = await getCashflowStats(start, end, overrides);
+    const { html, resultClass } = cfTileRows(stats, isFuture);
+    const futureClass = isFuture ? ' sb-cal-future' : '';
+    return `<div class="sb-year-cell ${resultClass}${futureClass}" onclick="openCashflowMonth(${idx})">
+      <div class="sb-year-title">${name}</div>
+      ${html}
+    </div>`;
+  }));
+
+  grid.innerHTML = tiles.join('');
+}
+
+export async function openCashflowMonth(monthIndex){
+  navigateTo('screen-cashflow-month', 'Finanse · Cash-Flow · ' + MONTH_NAMES[monthIndex] + ' ' + CF_YEAR);
+  const el = document.getElementById('cfMonthCalendar');
+  el.innerHTML = '<p class="chart-loading">Ładowanie…</p>';
+
+  const overrides = getPersistedOverrides();
+  const today = startOfDay(new Date());
+  const totalDays = new Date(CF_YEAR, monthIndex + 1, 0).getDate();
+  const firstWeekday = (new Date(CF_YEAR, monthIndex, 1).getDay() + 6) % 7; // 0=Pon
+
+  const headerCells = WEEKDAY_NAMES.map(w => `<div class="sb-cal-weekday">${w}</div>`).join('');
+  const leadingBlanks = Array.from({ length: firstWeekday }, () => '<div class="sb-cal-cell sb-cal-blank"></div>').join('');
+
+  const dayCells = await Promise.all(Array.from({ length: totalDays }, async (_, i) => {
+    const dayNum = i + 1;
+    const day = new Date(CF_YEAR, monthIndex, dayNum);
+    const isFuture = day > today;
+    const isToday = day.getTime() === today.getTime();
+    const stats = await getCashflowStats(day, day, overrides);
+    const { html, resultClass } = cfTileRows(stats, isFuture);
+    const stateClass = isFuture ? ' sb-cal-future' : (isToday ? ' sb-cal-today' : '');
+    return `<div class="sb-cal-cell ${resultClass}${stateClass}">
+      <div class="sb-cal-day">${dayNum}</div>
+      ${html}
+    </div>`;
+  }));
+
+  el.innerHTML = `
+    <div class="sb-cal-grid">
+      ${headerCells}
+      ${leadingBlanks}
+      ${dayCells.join('')}
+    </div>
+  `;
 }

@@ -30,8 +30,18 @@ export function parseDate(dateStr){
   return isNaN(d.getTime()) ? null : d;
 }
 
+/* Ręczne grupowanie tysięcy zwykłą spacją (U+0020) zamiast polegania na
+   separatorze z toLocaleString('pl-PL') — w niektórych przeglądarkach/silnikach
+   jest to wąska spacja (U+202F), która przy pogrubionej czcionce w małym
+   rozmiarze bywa praktycznie niewidoczna (np. "2337" zamiast "2 337"). */
+export function groupThousands(intStr){
+  return intStr.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
 export function fmtPLN(n){
-  return n.toLocaleString('pl-PL',{minimumFractionDigits:2, maximumFractionDigits:2}) + ' zł';
+  const isNeg = n < 0;
+  const [intPart, decPart] = Math.abs(n).toFixed(2).split('.');
+  return (isNeg ? '-' : '') + groupThousands(intPart) + ',' + decPart + ' zł';
 }
 
 const IMG_BASE = 'https://assets.ferroboutique.pl/thumbs/1000xauto/';

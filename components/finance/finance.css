@@ -22,10 +22,141 @@
 .cf-marketing-rate-info{font-family:'IBM Plex Mono',monospace;font-size:11.5px;margin-top:-8px;}
 .finance-error{color:var(--rust);font-size:12.5px;margin-bottom:16px;}
 
-/* 4 karty obok siebie w hub-grid potrzebują mniejszej czcionki niż pojedyncza,
-   pełnoszerokościowa statystyka (Zwroty/Alerty) — .stat-hero domyślnie ma 48px. */
-#screen-finance-dashboard .hub-grid .stat-card{padding:24px 20px;}
-#screen-finance-dashboard .hub-grid .stat-hero{font-size:26px;}
+/* ---------- BILANS SPRZEDAŻY I MARKETING ---------- */
+.sb-marketing-info{
+  font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text-muted);
+  background:var(--paper-dim);border-radius:9px;padding:12px 14px;margin-bottom:16px;line-height:1.6;
+}
+.sb-promo-default-row{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px;
+  padding:10px 12px;background:var(--paper-dim);color:var(--ink);border-radius:7px;
+}
+.sb-promo-default-row label{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:#6B6670;
+}
+.sb-promo-default-row input{width:110px;}
+.sb-promo-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+.sb-promo-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--paper-dim);color:var(--ink);border-radius:7px;padding:8px 12px;font-size:13px;
+}
+.sb-promo-input{width:110px;text-align:right;}
+.sb-other-costs-input{width:100%;margin:2px 0 4px;}
+.sb-stat-card{background:var(--paper);color:var(--ink);border-radius:10px;padding:22px 24px;margin-bottom:20px;}
+.sb-chart-wrap{background:var(--paper);border-radius:10px;padding:20px 24px;margin-bottom:20px;}
+
+/* ---------- Kalendarz miesiąca (Bilans sprzedaży) ---------- */
+/* auto-fit samo dobiera liczbę kolumn do dostępnej szerokości (płynnie, bez
+   jednego twardego skoku) — min. szerokość kolumny (140px) daje dokładnie
+   2 kolumny na najwęższym telefonie, a max-width kontenera (1028px = 7×140
+   + 6×8 gap) daje dokładnie 7 kolumn i ani jednej więcej na szerokich
+   ekranach. margin:auto centruje całość, gdy jest więcej miejsca niż 1028px. */
+.sb-cal-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:8px;margin:0 auto 20px;max-width:1028px;
+}
+.sb-cal-weekday{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--text-muted);text-align:center;padding-bottom:2px;
+}
+.sb-cal-cell{
+  background:var(--paper);color:var(--ink);border-radius:9px;padding:8px 9px 7px;
+  cursor:pointer;border:5px solid transparent;transition:transform .1s ease,box-shadow .1s ease;
+}
+.sb-cal-cell:not(.sb-cal-blank):not(.sb-cal-empty):hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.25);}
+.sb-cal-cell.sb-cal-positive, .sb-year-cell.sb-cal-positive{border-color:var(--sage);}
+.sb-cal-cell.sb-cal-negative, .sb-year-cell.sb-cal-negative{border-color:var(--rust);}
+/* Dzień z promocją (wg arkusza Promocje) — niebieskawe tło, niezależnie od
+   koloru ramki (który dalej pokazuje wynik dnia). */
+.sb-cal-cell.sb-cal-promo{background:#DCE7F5;}
+.sb-cal-blank{background:transparent;cursor:default;}
+.sb-cal-empty{background:var(--paper-dim);color:var(--text-muted);cursor:default;min-height:auto;}
+.sb-cal-empty.sb-cal-promo{background:#E8EEF7;}
+/* Dziś — dane jeszcze niepełne (dzień trwa), więc wynik nie jest ostateczny:
+   neutralna szara ramka zamiast zielonej/czerwonej + lekkie przygaszenie. */
+.sb-cal-cell.sb-cal-today, .sb-year-cell.sb-cal-today{
+  border-color:#B8B2A6 !important;opacity:.82;
+}
+/* Dni/miesiące w przyszłości, które mimo to mają dane (Cash-Flow: to czysty
+   plan, nic się jeszcze nie wydarzyło) — ciemniejsze przygaszenie niż "dziś". */
+.sb-cal-cell.sb-cal-future, .sb-year-cell.sb-cal-future{
+  border-color:#8A8590 !important;opacity:.6;background:var(--paper-dim);
+}
+.sb-cal-day{font-family:'Fraunces',serif;font-size:15px;font-weight:600;margin-bottom:3px;}
+.sb-cal-note{font-size:11px;margin-bottom:10px;}
+/* Etykieta i wartość ZAWSZE w jednej linii (nowrap + elipsa na etykiecie,
+   gdyby jednak zabrakło miejsca) — to głównie zawijanie długich etykiet na
+   2-3 linie robiło kafelki tak wysokie, nie same liczby. */
+.sb-cal-row{display:flex;justify-content:space-between;gap:5px;font-size:9px;color:#6B6670;padding:0;line-height:1.6;}
+.sb-cal-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sb-cal-row b{font-family:'IBM Plex Mono',monospace;color:var(--ink);font-weight:600;font-size:9px;white-space:nowrap;flex-shrink:0;}
+.sb-cal-row.sb-cal-result{margin-top:4px;padding-top:4px;border-top:1px solid #EFE9DC;}
+.sb-cal-row.sb-cal-result b{font-size:10px;}
+.sb-cal-row.sb-cal-gap{margin-top:4px;padding-top:4px;border-top:1px dashed #EFE9DC;}
+/* Podsumowanie pośrednie (np. Marża) — pogrubione jak wynik końcowy, ale BEZ
+   linii NAD sobą, bo to wciąż "domyka" poprzednią grupę wierszy, nie zaczyna
+   nowej; linia oddzielająca kolejną grupę idzie na następnym wierszu (.sb-cal-gap). */
+.sb-cal-row.sb-cal-subtotal b{font-size:10px;}
+
+/* Nagłówki dni tygodnia i "puste" komórki wyrównujące 1. dzień miesiąca mają
+   sens TYLKO przy dokładnie 7 kolumnach (inaczej nic by się nie zgadzało) —
+   auto-fit sam zejdzie poniżej 7 dopiero, gdy zabraknie miejsca (patrz
+   .sb-cal-grid), więc chowamy je razem z tym progiem, nie przy sztywnym 700px. */
+@media(max-width:1099px){
+  .sb-cal-weekday, .sb-cal-blank{display:none;}
+}
+
+/* ---------- Rok (Bilans sprzedaży) — 12 kafelków miesięcy, te same wiersze
+   co kafelek dnia w kalendarzu (.sb-cal-row/.sb-cal-gap/.sb-cal-result). ---------- */
+.sb-year-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-bottom:20px;}
+.sb-year-cell{
+  background:var(--paper);color:var(--ink);border-radius:10px;padding:16px 18px 14px;
+  cursor:pointer;border:5px solid transparent;transition:transform .1s ease,box-shadow .1s ease;
+}
+.sb-year-cell:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.25);}
+.sb-year-cell.sb-year-disabled{cursor:default;color:var(--text-muted);}
+.sb-year-title{font-family:'Fraunces',serif;font-size:20px;font-weight:600;margin-bottom:8px;}
+
+/* ---------- SYMULACJA ---------- */
+.sim-form{background:var(--paper);color:var(--ink);border-radius:10px;padding:22px 24px;margin-bottom:20px;}
+.sim-field{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}
+.sim-field label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:#6B6670;}
+.sim-field input{
+  font-family:'Inter',sans-serif;font-size:14px;padding:9px 11px;border:1px solid #DCD3C0;
+  border-radius:6px;background:#fff;color:var(--ink);
+}
+/* Input po lewej, po prawej podpowiedź aktualnej wartości domyślnej +
+   przycisk do jej nadpisania bieżącą wartością pola. */
+.sim-input-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+.sim-input-row input{flex:1;min-width:120px;}
+.sim-default-hint{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A8272;white-space:nowrap;}
+.sim-save-default{
+  font-family:'Inter',sans-serif;font-size:11.5px;font-weight:600;color:var(--ink);
+  background:none;border:1px solid #8A8272;padding:5px 10px;border-radius:14px;cursor:pointer;white-space:nowrap;
+}
+.sim-save-default:hover{border-color:var(--gold);color:#8a6d00;}
+.sim-field input:disabled{opacity:.55;cursor:not-allowed;background:var(--paper-dim);}
+/* Kluczowe założenia symulacji (koszt towaru, zwroty, odzysk) — osobny,
+   wyróżniony kafelek NAD resztą inputów, domyślnie zablokowany do edycji
+   (trzeba kliknąć "Edytuj"), z przyciskiem "Reset" do wartości skalibrowanych
+   na realnych danych, żeby nie dało się ich przypadkiem nadpisać. */
+.sim-key-card{
+  background:var(--paper);color:var(--ink);border-radius:10px;padding:22px 24px;margin-bottom:20px;
+  border:1px solid var(--gold);
+}
+.sim-key-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px 18px;margin:14px 0;}
+.sim-key-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.sim-result{background:var(--paper);color:var(--ink);border-radius:10px;padding:24px;text-align:center;}
+.sim-result-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);}
+.sim-result-value{font-family:'Fraunces',serif;font-size:34px;font-weight:600;margin-top:6px;}
+
+@media(max-width:560px){
+  .sb-promo-default-row{flex-direction:column;align-items:stretch;gap:6px;}
+  .sb-promo-default-row input{width:100%;}
+  .sb-promo-row{flex-direction:column;align-items:stretch;gap:6px;}
+  .sb-promo-input{width:100%;}
+  .sim-input-row{flex-direction:column;align-items:stretch;}
+}
 
 @media(max-width:560px){
   .finance-range-row{flex-direction:column;align-items:stretch;}

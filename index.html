@@ -625,10 +625,10 @@
   <!-- SCREEN 14: FINANSE — WYBÓR RAPORTU -->
   <div class="screen" id="screen-finance-category">
     <div class="hub-grid">
-      <div class="tile" onclick="openFinanceSales()">
+      <div class="tile" onclick="openSalesBalanceHub()">
         <span class="tile-icon">💹</span>
-        <p class="tile-name">Wartości sprzedaży</p>
-        <p class="tile-desc">Sprzedaż brutto, zysk, marża i koszt wysyłki w wybranym okresie.</p>
+        <p class="tile-name">Bilans sprzedaży i marketing</p>
+        <p class="tile-desc">Wpływy brutto/netto, koszt towaru, marża, budżet marketingu i MER.</p>
       </div>
       <div class="tile" onclick="openCashflowHub()">
         <span class="tile-icon">💵</span>
@@ -638,46 +638,253 @@
     </div>
   </div>
 
-  <!-- SCREEN 15: FINANSE — WARTOŚCI SPRZEDAŻY (DASHBOARD) -->
-  <div class="screen" id="screen-finance-dashboard">
-    <div class="finance-filters pill-row" id="financeFilters">
-      <button class="pill" data-key="yesterday" onclick="applyFinancePreset('yesterday')">Poprzedni dzień</button>
-      <button class="pill" data-key="currentWeek" onclick="applyFinancePreset('currentWeek')">Bieżący tydzień<span class="pill-sub">piątek–czwartek</span></button>
-      <button class="pill" data-key="lastWeek" onclick="applyFinancePreset('lastWeek')">Ostatni tydzień<span class="pill-sub">piątek–czwartek</span></button>
-      <button class="pill" data-key="currentMonth" onclick="applyFinancePreset('currentMonth')">Bieżący miesiąc</button>
-      <button class="pill" data-key="lastMonth" onclick="applyFinancePreset('lastMonth')">Ostatni miesiąc</button>
-      <button class="pill" data-key="currentYear" onclick="applyFinancePreset('currentYear')">Bieżący rok</button>
+  <!-- SCREEN 15: FINANSE — BILANS SPRZEDAŻY I MARKETING — WYBÓR OKRESU -->
+  <div class="screen" id="screen-sales-balance-periods">
+    <div class="hub-grid">
+      <div class="tile" onclick="openSalesBalanceCurrentMonth()">
+        <span class="tile-icon">📌</span>
+        <p class="tile-name">Bieżący miesiąc</p>
+        <p class="tile-desc">Bilans sprzedaży i marketingu od początku miesiąca do dziś.</p>
+      </div>
+      <div class="tile" onclick="openSalesBalanceMonths()">
+        <span class="tile-icon">🗓️</span>
+        <p class="tile-name">Poprzednie miesiące</p>
+        <p class="tile-desc">Bilans rozbity na poszczególne miesiące roku.</p>
+      </div>
+      <div class="tile" onclick="openSalesBalanceYear()">
+        <span class="tile-icon">📅</span>
+        <p class="tile-name">2026</p>
+        <p class="tile-desc">Bilans za cały bieżący rok.</p>
+      </div>
+      <div class="tile" onclick="openSalesBalanceSimulation()">
+        <span class="tile-icon">🧮</span>
+        <p class="tile-name">Symulacja</p>
+        <p class="tile-desc">Jaki budżet marketingu / MER utrzyma płynność, przy założonym COGS i zwrotach.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 15b: BILANS — WYBÓR MIESIĄCA -->
+  <div class="screen" id="screen-sales-balance-months">
+    <div class="hub-grid" id="sbMonthsGrid"></div>
+  </div>
+
+  <!-- SCREEN 15b2: BILANS — 2026, 12 KAFELKÓW MIESIĘCY Z PEŁNYMI DANYMI -->
+  <div class="screen" id="screen-sales-balance-year">
+    <div class="finance-filters pill-row sb-returns-mode-row">
+      <button class="pill" data-returns-mode="purchaseMonth" onclick="applySalesBalanceReturnsMode('purchaseMonth')">Wg miesiąca zakupu</button>
+      <button class="pill" data-returns-mode="refundMonth" onclick="applySalesBalanceReturnsMode('refundMonth')">Wg miesiąca zwrotu środków</button>
+    </div>
+    <p class="finance-range-label">Sposób przypisania zwrotu do miesiąca — "wg zakupu" liczy zwrot do miesiąca sprzedaży (nawet jeśli oddano towar w połowie kolejnego), "wg zwrotu środków" liczy go do miesiąca, w którym realnie wypłynęły pieniądze z konta.</p>
+    <p class="finance-range-label sb-cal-note">Wszystkie kwoty w kafelkach są netto (bez VAT).</p>
+    <div class="sb-year-grid" id="sbYearGrid"></div>
+  </div>
+
+  <!-- SCREEN 15c: BILANS SPRZEDAŻY I MARKETING (DASHBOARD) -->
+  <div class="screen" id="screen-sales-balance-dashboard">
+    <div class="finance-filters pill-row" id="sbFilters">
+      <button class="pill" data-key="currentMonth" onclick="applySalesBalancePreset('currentMonth')">Bieżący miesiąc</button>
+      <button class="pill" data-key="year" onclick="applySalesBalancePreset('year')">2026</button>
+    </div>
+
+    <div class="finance-filters pill-row sb-returns-mode-row">
+      <button class="pill" data-returns-mode="purchaseMonth" onclick="applySalesBalanceReturnsMode('purchaseMonth')">Wg miesiąca zakupu</button>
+      <button class="pill" data-returns-mode="refundMonth" onclick="applySalesBalanceReturnsMode('refundMonth')">Wg miesiąca zwrotu środków</button>
     </div>
 
     <div class="finance-range-row">
-      <label for="financeDateFrom">Zakres dat</label>
-      <input type="date" class="finance-date-input" id="financeDateFrom">
+      <label for="sbDateFrom">Zakres dat</label>
+      <input type="date" class="finance-date-input" id="sbDateFrom">
       <span class="finance-range-sep">–</span>
-      <input type="date" class="finance-date-input" id="financeDateTo">
-      <button class="refresh-btn" onclick="applyFinanceCustomRange()">Zastosuj</button>
+      <input type="date" class="finance-date-input" id="sbDateTo">
+      <button class="refresh-btn" onclick="applySalesBalanceCustomRange()">Zastosuj</button>
+    </div>
+    <div class="finance-range-row">
+      <label for="sbDateSingle">Konkretna data (nie później niż wczoraj)</label>
+      <input type="date" class="finance-date-input" id="sbDateSingle">
+      <button class="refresh-btn" onclick="applySalesBalanceSingleDate()">Pokaż</button>
     </div>
 
-    <p class="finance-range-label" id="financeRangeLabel"></p>
-    <div class="finance-error" id="financeError"></div>
+    <p class="finance-range-label" id="sbRangeLabel"></p>
+    <div class="finance-error" id="sbError"></div>
 
+    <!-- Kalendarz — tylko przy widoku konkretnego miesiąca; kliknięcie dnia
+         pokazuje bilans tego jednego dnia (patrz applySalesBalanceCalendarDay). -->
+    <div id="sbCalendar"></div>
+
+    <div class="sb-chart-wrap">
+      <div class="finance-range-label">MER w czasie</div>
+      <div id="sbChart"></div>
+    </div>
+
+    <div class="sb-marketing-info" id="sbMarketingInfo"></div>
+    <div id="sbPromoEditor"></div>
+
+    <div class="sb-stat-card">
+      <div class="finance-range-label">Wpływy</div>
+      <div class="modal-grid">
+        <div><div class="modal-stat-label">Sprzedaż brutto</div><div class="modal-stat-val" id="sbSalesGross"></div></div>
+        <div><div class="modal-stat-label">Sprzedaż netto</div><div class="modal-stat-val" id="sbSalesNet"></div></div>
+        <div><div class="modal-stat-label">Dostawy opłacone przez klientów — brutto</div><div class="modal-stat-val" id="sbShippingGross"></div></div>
+        <div><div class="modal-stat-label">Dostawy opłacone przez klientów — netto</div><div class="modal-stat-val" id="sbShippingNet"></div></div>
+      </div>
+      <div class="modal-grid">
+        <div><div class="modal-stat-label">Suma wpływów — brutto</div><div class="modal-stat-val" id="sbInflowGross"></div></div>
+        <div><div class="modal-stat-label">Suma wpływów — netto</div><div class="modal-stat-val" id="sbInflowNet"></div></div>
+      </div>
+    </div>
+
+    <div class="sb-stat-card">
+      <div class="finance-range-label">Koszt towaru, marża i zwroty</div>
+      <div class="modal-grid">
+        <div><div class="modal-stat-label">Koszt sprzedanego towaru (netto)</div><div class="modal-stat-val" id="sbCogs"></div></div>
+        <div><div class="modal-stat-label">Marża — netto (przychody + dostawy − koszt towaru − zwroty + restock, wszystko netto)</div><div class="modal-stat-val" id="sbMargin"></div></div>
+        <div><div class="modal-stat-label">Zwroty — brutto (kwota oddana klientowi, do płynności)</div><div class="modal-stat-val" id="sbReturnsGross"></div></div>
+        <div><div class="modal-stat-label">Restock zwróconego towaru — netto (wraca na stan)</div><div class="modal-stat-val" id="sbRestockValue"></div></div>
+      </div>
+    </div>
+
+    <div class="sb-stat-card">
+      <div class="finance-range-label">Marketing, MER i wynik</div>
+      <div class="modal-grid">
+        <div><div class="modal-stat-label">Średni koszt marketingu / dzień</div><div class="modal-stat-val" id="sbMarketingDaily"></div></div>
+        <div><div class="modal-stat-label">MER (sprzedaż netto ÷ budżet marketingu)</div><div class="modal-stat-val" id="sbMer"></div></div>
+        <div id="sbOtherCostsField"></div>
+        <div><div class="modal-stat-label">Wynik finansowy — netto (marża − marketing − pozostałe koszty, wszystko netto)</div><div class="modal-stat-val" id="sbFinancialResult"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 15d: BILANS — SYMULACJA -->
+  <div class="screen" id="screen-sales-balance-simulation">
+    <div class="finance-filters pill-row" id="simModeFilters">
+      <button class="pill" data-key="result" onclick="applySalesBalanceSimMode('result')">Podaj budżet marketingu → policz wynik</button>
+      <button class="pill" data-key="budget" onclick="applySalesBalanceSimMode('budget')">Podaj docelowy wynik → policz budżet/MER</button>
+      <button class="pill" data-key="sales" onclick="applySalesBalanceSimMode('sales')">Podaj docelowy MER → policz wymaganą sprzedaż</button>
+    </div>
+
+    <div class="sim-key-card">
+      <div class="finance-range-label">Kluczowe założenia — edytuj ostrożnie</div>
+      <div class="sim-key-grid">
+        <div class="sim-field">
+          <label for="simCogsPct">Koszt sprzedanego towaru (% sprzedaży brutto)</label>
+          <input type="number" id="simCogsPct" step="0.5" disabled oninput="applySimKeyInput('simCogsPct', this.value)">
+        </div>
+        <div class="sim-field">
+          <label for="simReturnsPct">Zwroty do wypłaty klientom (% sprzedaży brutto)</label>
+          <input type="number" id="simReturnsPct" step="0.5" disabled oninput="applySimKeyInput('simReturnsPct', this.value)">
+        </div>
+        <div class="sim-field">
+          <label for="simRecoveryPct">Odzysk kosztu towaru ze zwrotów (% wartości zwrotów, netto)</label>
+          <input type="number" id="simRecoveryPct" step="1" disabled oninput="applySimKeyInput('simRecoveryPct', this.value)">
+        </div>
+      </div>
+      <div class="sim-key-actions">
+        <button class="sim-save-default" id="simKeyEditBtn" onclick="toggleSimKeyEdit()">Edytuj</button>
+        <button class="sim-save-default" onclick="resetSimKeyAssumptions()">Reset (46,8% / 30,6% / 58,1%)</button>
+      </div>
+    </div>
+
+    <div class="sim-form">
+      <div class="sim-field" id="simSalesGrossRow">
+        <label for="simSalesGross">Sprzedaż brutto (miesięcznie)</label>
+        <div class="sim-input-row">
+          <input type="number" id="simSalesGross" oninput="runSimulation()">
+          <span class="sim-default-hint" id="simSalesGrossDefault"></span>
+          <button class="sim-save-default" onclick="saveSimDefault('simSalesGross')">Zapisz jako domyślne</button>
+        </div>
+      </div>
+      <div class="sim-field" id="simTargetMerRow">
+        <label for="simTargetMer">Docelowy MER</label>
+        <div class="sim-input-row">
+          <input type="number" id="simTargetMer" step="0.1" oninput="runSimulation()">
+          <span class="sim-default-hint" id="simTargetMerDefault"></span>
+          <button class="sim-save-default" onclick="saveSimDefault('simTargetMer')">Zapisz jako domyślne</button>
+        </div>
+      </div>
+      <div class="sim-field">
+        <label for="simShippingRevenue">Planowany przychód z dostaw opłacanych przez klientów (brutto, miesięcznie)</label>
+        <div class="sim-input-row">
+          <input type="number" id="simShippingRevenue" step="1000" oninput="runSimulation()">
+          <span class="sim-default-hint" id="simShippingRevenueDefault"></span>
+          <button class="sim-save-default" onclick="saveSimDefault('simShippingRevenue')">Zapisz jako domyślne</button>
+        </div>
+      </div>
+      <div class="sim-field">
+        <label for="simOtherCosts">Pozostałe koszty (brutto, miesięcznie)</label>
+        <div class="sim-input-row">
+          <input type="number" id="simOtherCosts" step="1000" oninput="runSimulation()">
+          <span class="sim-default-hint" id="simOtherCostsDefault"></span>
+          <button class="sim-save-default" onclick="saveSimDefault('simOtherCosts')">Zapisz jako domyślne</button>
+        </div>
+      </div>
+      <div class="sim-field" id="simMarketingBudgetRow">
+        <label for="simMarketingBudget">Budżet marketingu (miesięcznie)</label>
+        <div class="sim-input-row">
+          <input type="number" id="simMarketingBudget" step="1000" oninput="runSimulation()">
+          <span class="sim-default-hint" id="simMarketingBudgetDefault"></span>
+          <button class="sim-save-default" onclick="saveSimDefault('simMarketingBudget')">Zapisz jako domyślne</button>
+        </div>
+      </div>
+      <div class="sim-field" id="simTargetResultRow">
+        <label for="simTargetResult">Docelowy wynik finansowy (0 = na zero)</label>
+        <div class="sim-input-row">
+          <input type="number" id="simTargetResult" step="1000" oninput="runSimulation()">
+          <span class="sim-default-hint" id="simTargetResultDefault"></span>
+          <button class="sim-save-default" onclick="saveSimDefault('simTargetResult')">Zapisz jako domyślne</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sb-stat-card">
+      <div class="modal-grid">
+        <div><div class="modal-stat-label">Sprzedaż brutto</div><div class="modal-stat-val" id="simSalesGrossResult"></div></div>
+        <div><div class="modal-stat-label">Sprzedaż netto</div><div class="modal-stat-val" id="simSalesNet"></div></div>
+        <div><div class="modal-stat-label">Przychód z dostaw (netto)</div><div class="modal-stat-val" id="simShippingRevenueNet"></div></div>
+        <div><div class="modal-stat-label">Koszt sprzedanego towaru</div><div class="modal-stat-val" id="simCogsResult"></div></div>
+        <div><div class="modal-stat-label">Zwroty do klienta (netto — brutto liczy się do płynności, nie do wyniku)</div><div class="modal-stat-val" id="simReturnsOutflow"></div></div>
+        <div><div class="modal-stat-label">Odzyskany koszt towaru ze zwrotów</div><div class="modal-stat-val" id="simReturnsRecovery"></div></div>
+        <div><div class="modal-stat-label">Pozostałe koszty (netto — brutto z pola wyżej liczy się do płynności, nie do wyniku)</div><div class="modal-stat-val" id="simOtherCostsResult"></div></div>
+      </div>
+      <div class="modal-grid">
+        <div><div class="modal-stat-label">Budżet marketingu</div><div class="modal-stat-val" id="simMarketingBudgetResult"></div></div>
+        <div><div class="modal-stat-label">Wynik finansowy</div><div class="modal-stat-val" id="simFinancialResult"></div></div>
+        <div><div class="modal-stat-label">MER (liczony tylko ze sprzedaży, bez dostaw)</div><div class="modal-stat-val" id="simMer"></div></div>
+      </div>
+    </div>
+
+    <div class="sim-result">
+      <div class="sim-result-label" id="simResultLabel"></div>
+      <div class="sim-result-value" id="simResultValue"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN 15e: CASH-FLOW — WYBÓR WIDOKU -->
+  <div class="screen" id="screen-cashflow-periods">
     <div class="hub-grid">
-      <div class="stat-card">
-        <div class="stat-hero" id="financeGross"></div>
-        <div class="stat-hero-label">Sprzedaż brutto (z VAT)</div>
+      <div class="tile" onclick="openCashflowTabular()">
+        <span class="tile-icon">📋</span>
+        <p class="tile-name">Wersja tabelaryczna</p>
+        <p class="tile-desc">Pozostałe dni tygodnia/miesiąca, następny/poprzedni miesiąc — plan i realizacja obok siebie.</p>
       </div>
-      <div class="stat-card">
-        <div class="stat-hero" id="financeProfit"></div>
-        <div class="stat-hero-label">Zysk netto (bez VAT)</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-hero" id="financeMargin"></div>
-        <div class="stat-hero-label">Marża (po kosztach wysyłki po stronie nadawcy)</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-hero" id="financeShipping"></div>
-        <div class="stat-hero-label">Koszt wysyłki pokryty przez odbiorcę</div>
+      <div class="tile" onclick="openCashflowYear()">
+        <span class="tile-icon">📅</span>
+        <p class="tile-name">2026</p>
+        <p class="tile-desc">Plan i realizacja rozbite na miesiące, a w środku na dni całego roku.</p>
       </div>
     </div>
+  </div>
+
+  <!-- SCREEN 15f: CASH-FLOW — 2026, 12 KAFELKÓW MIESIĘCY -->
+  <div class="screen" id="screen-cashflow-year">
+    <p class="finance-range-label sb-cal-note">Kolor ramki wg bilansu (realizacja, jeśli już dostępna — inaczej plan). Miesiące, które jeszcze się nie zaczęły, pokazują tylko plan.</p>
+    <div class="sb-year-grid" id="cfYearGrid"></div>
+  </div>
+
+  <!-- SCREEN 15g: CASH-FLOW — KALENDARZ DNI W MIESIĄCU -->
+  <div class="screen" id="screen-cashflow-month">
+    <p class="finance-range-label sb-cal-note">Kolor ramki wg bilansu (realizacja, jeśli już dostępna — inaczej plan). Przyszłe dni pokazują tylko plan.</p>
+    <div id="cfMonthCalendar"></div>
   </div>
 
   <!-- SCREEN 16: FINANSE — CASH-FLOW -->
