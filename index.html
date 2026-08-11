@@ -496,15 +496,15 @@
     <div class="hub-grid">
       <div class="stat-card">
         <div class="stat-hero" id="reorderCount"></div>
-        <div class="stat-hero-label">produktów do domówienia</div>
+        <div class="stat-hero-label">produktów w bazie</div>
       </div>
       <div class="stat-card">
-        <div class="stat-hero" id="reorderValueBraku"></div>
-        <div class="stat-hero-label">wartość braku (netto)</div>
+        <div class="stat-hero" id="reorderDoDomowienia"></div>
+        <div class="stat-hero-label">oznaczonych do domówienia</div>
       </div>
       <div class="stat-card">
-        <div class="stat-hero" id="reorderValueDomowienia"></div>
-        <div class="stat-hero-label">wartość domówienia (netto)</div>
+        <div class="stat-hero" id="reorderWaiting"></div>
+        <div class="stat-hero-label">czeka na zamówienie</div>
       </div>
     </div>
     <div class="finance-error" id="reorderError"></div>
@@ -523,17 +523,15 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr>
+        <thead><tr id="reorderTableHead">
           <th class="rank sticky-col"></th>
           <th class="identity-col sticky-col">Produkt</th>
-          <th>Stan / min</th>
-          <th>Ilość do domówienia</th>
-          <th>Wartość braku</th>
-          <th>Wartość domówienia</th>
-          <th>Narzut</th>
-          <th>Marża</th>
-          <th>% zwrotów</th>
-          <th>Alerty (30 dni)</th>
+          <th data-key="stan" onclick="setReorderSort('stan')">Stan / min <span class="arrow"></span></th>
+          <th data-key="ilDoDomowienia" onclick="setReorderSort('ilDoDomowienia')">Ilość do domówienia <span class="arrow"></span></th>
+          <th data-key="cenaZakupu" onclick="setReorderSort('cenaZakupu')">Cena zakupu <span class="arrow"></span></th>
+          <th data-key="marzaPct" onclick="setReorderSort('marzaPct')">Marża <span class="arrow"></span></th>
+          <th data-key="zwrotyPct" onclick="setReorderSort('zwrotyPct')">% zwrotów <span class="arrow"></span></th>
+          <th data-key="alerty" onclick="setReorderSort('alerty')">Alerty (7 dni) <span class="arrow"></span></th>
           <th>Status</th>
         </tr></thead>
         <tbody id="reorderTableBody"></tbody>

@@ -16,7 +16,7 @@ import {
 } from './components/finance/salesBalance.js';
 import { openStockHub, showStockForDate, applyStockChartPeriod, toggleStockChartTable, toggleStockDateResults, applyStockDateSearch } from './components/stock/stock.js';
 import { openSuppliersHub, openSuppliersRanking, openSupplierDetail, applySupplierDetailSearch, openSuppliersDemandHub, applySuppliersDemandPeriod } from './components/suppliers/suppliers.js';
-import { openReorderHub, applyReorderFilter, applyReorderSearch, openReorderProductModal } from './components/reorder/reorder.js';
+import { openReorderHub, applyReorderFilter, applyReorderSearch, openReorderProductModal, setReorderSort } from './components/reorder/reorder.js';
 
 window.checkPassword = checkPassword;
 window.logout = logout;
@@ -95,5 +95,6 @@ window.openReorderHub = openReorderHub;
 window.applyReorderFilter = applyReorderFilter;
 window.applyReorderSearch = applyReorderSearch;
 window.openReorderProductModal = openReorderProductModal;
+window.setReorderSort = setReorderSort;
 
 initAuth();

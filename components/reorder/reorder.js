@@ -5,44 +5,53 @@ import { openModal } from '../../core/modal.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
 import { matchesProductQuery } from '../../core/search.js';
 
-const ALERT_WINDOW_DAYS = 30; // ta sama liczba dni co przy budowie listy (getReorderList(30))
+const ALERT_WINDOW_DAYS = 7; // ta sama liczba dni co przy budowie listy (getReorderList(7))
+const COLSPAN = 9;
 
 let currentRows = [];
 let currentFilter = 'all';
 let currentSearch = '';
+let sortState = { key: 'ilDoDomowienia', dir: 'desc' };
 
 export async function openReorderHub(){
   navigateTo('screen-reorder-dashboard', 'Do zamówienia / braki');
   currentFilter = 'all';
   currentSearch = '';
+  sortState = { key: 'ilDoDomowienia', dir: 'desc' };
   document.getElementById('reorderSearch').value = '';
   highlightFilter('all');
 
-  ['reorderCount', 'reorderValueBraku', 'reorderValueDomowienia'].forEach(id => {
+  ['reorderCount', 'reorderDoDomowienia', 'reorderWaiting'].forEach(id => {
     document.getElementById(id).textContent = '…';
   });
   document.getElementById('reorderError').textContent = '';
   document.getElementById('reorderTableInfo').textContent = 'Ładowanie…';
-  document.getElementById('reorderTableBody').innerHTML = `<tr><td colspan="11" class="empty-state">Ładowanie…</td></tr>`;
+  document.getElementById('reorderTableBody').innerHTML = `<tr><td colspan="${COLSPAN}" class="empty-state">Ładowanie…</td></tr>`;
 
   try{
     const { rows, totals } = await getReorderList(ALERT_WINDOW_DAYS);
     currentRows = rows;
 
     document.getElementById('reorderCount').textContent = totals.count.toLocaleString('pl-PL');
-    document.getElementById('reorderValueBraku').textContent = fmtPLN(totals.wartoscBraku);
-    document.getElementById('reorderValueDomowienia').textContent = fmtPLN(totals.wartoscDomowienia);
+    document.getElementById('reorderDoDomowienia').textContent = totals.doDomowienia.toLocaleString('pl-PL');
+    document.getElementById('reorderWaiting').textContent = totals.czekaNaZamowienie.toLocaleString('pl-PL');
 
     renderTable();
   } catch(err){
-    ['reorderCount', 'reorderValueBraku', 'reorderValueDomowienia'].forEach(id => {
+    ['reorderCount', 'reorderDoDomowienia', 'reorderWaiting'].forEach(id => {
       document.getElementById(id).textContent = '—';
     });
     document.getElementById('reorderError').textContent =
       `Nie udało się pobrać danych (${err.message}). Sprawdź, czy arkusze Panel i Alerts są nadal udostępnione kontu serwisowemu.`;
     document.getElementById('reorderTableInfo').textContent = '';
-    document.getElementById('reorderTableBody').innerHTML = `<tr><td colspan="11" class="empty-state">Błąd.</td></tr>`;
+    document.getElementById('reorderTableBody').innerHTML = `<tr><td colspan="${COLSPAN}" class="empty-state">Błąd.</td></tr>`;
   }
+}
+
+export function setReorderSort(key){
+  if(sortState.key === key){ sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc'; }
+  else { sortState = { key, dir: 'desc' }; }
+  renderTable();
 }
 
 export function applyReorderFilter(key){
@@ -62,6 +71,13 @@ function highlightFilter(key){
   });
 }
 
+function sortLabel(k){
+  return {
+    stan: 'stan magazynowy', ilDoDomowienia: 'ilość do domówienia', cenaZakupu: 'cena zakupu',
+    marzaPct: 'marża', zwrotyPct: '% zwrotów', alerty: 'liczba zgłoszeń',
+  }[k];
+}
+
 function renderTable(){
   const info = document.getElementById('reorderTableInfo');
   const tbody = document.getElementById('reorderTableBody');
@@ -71,15 +87,28 @@ function renderTable(){
   else if(currentFilter === 'ordered') rows = rows.filter(r => r.zamowiono);
   if(currentSearch) rows = rows.filter(r => matchesProductQuery(currentSearch, r.id, r.name));
 
+  document.querySelectorAll('#reorderTableHead th[data-key]').forEach(th => {
+    th.classList.toggle('sorted', th.dataset.key === sortState.key);
+    th.querySelector('.arrow').textContent = th.dataset.key === sortState.key ? (sortState.dir === 'asc' ? '▲' : '▼') : '';
+  });
+
+  const dir = sortState.dir === 'asc' ? 1 : -1;
+  rows = [...rows].sort((a, b) => {
+    const av = a[sortState.key], bv = b[sortState.key];
+    if(av === null) return bv === null ? 0 : 1;
+    if(bv === null) return -1;
+    return (av - bv) * dir;
+  });
+
   if(rows.length === 0){
     info.textContent = currentRows.length === 0
-      ? 'Brak produktów oznaczonych do domówienia.'
+      ? 'Brak produktów.'
       : 'Brak produktów dla wybranego filtra/wyszukiwania.';
-    tbody.innerHTML = `<tr><td colspan="11" class="empty-state">Brak produktów.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${COLSPAN}" class="empty-state">Brak produktów.</td></tr>`;
     return;
   }
 
-  info.textContent = `${rows.length} produktów · sortowanie: liczba zgłoszeń, potem wartość braku`;
+  info.textContent = `${rows.length} produktów · sortowanie: ${sortLabel(sortState.key)} ${sortState.dir === 'asc' ? 'rosnąco' : 'malejąco'}`;
   tbody.innerHTML = rows.map((r, i) => {
     const belowMin = r.minStock > 0 && r.stan < r.minStock;
     return `<tr onclick="openReorderProductModal(${r.id})">
@@ -95,9 +124,7 @@ function renderTable(){
       </td>
       <td class="num${belowMin ? ' reorder-below-min' : ''}">${r.stan} / ${r.minStock || '—'}</td>
       <td class="num">${r.ilDoDomowienia.toLocaleString('pl-PL')}</td>
-      <td class="num">${fmtPLN(r.wartoscBraku)}</td>
-      <td class="num">${fmtPLN(r.wartoscDomowienia)}</td>
-      <td class="num">${r.narzutPct !== null ? r.narzutPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num">${fmtPLN(r.cenaZakupu)}</td>
       <td class="num">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
       <td class="num">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>
       <td class="num">${r.alerty > 0 ? `<span class="reorder-alert-badge">${r.alerty}</span>` : '—'}</td>
@@ -111,7 +138,7 @@ function fmtDatePl(d){ return d.toLocaleDateString('pl-PL'); }
 /* Tylko w tym module modal produktu dostaje dodatkową sekcję: które warianty
    (rozmiary itp.) są zgłoszone w Alertach, z którego dnia i ile zgłoszeń
    danego dnia — żeby było widać, z czego dokładnie składa się liczba
-   pokazana w kolumnie "Alerty (30 dni)". */
+   pokazana w kolumnie "Alerty (7 dni)". */
 export async function openReorderProductModal(id){
   openModal(id, true, '<div class="modal-stat-label">Ładowanie zgłoszeń…</div>');
   try{

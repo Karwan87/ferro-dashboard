@@ -13,10 +13,13 @@ export function openModal(id, extended, extraHtml){
 
   // Sekcja 1: cena/marża na sztukę — dane "statyczne" (katalogowe), nie
   // zależą od okresu.
+  const marzaPct = p.cena > 0 ? (p.cena - p.cenaZakupu) / p.cena * 100 : null;
   const financeSection = `
     <div class="modal-grid">
       <div><div class="modal-stat-label">Cena sprzedaży</div><div class="modal-stat-val">${fmtPLN(p.cena)}</div></div>
+      <div><div class="modal-stat-label">Cena zakupu</div><div class="modal-stat-val">${fmtPLN(p.cenaZakupu)}</div></div>
       <div><div class="modal-stat-label">Marża / szt.</div><div class="modal-stat-val">${fmtPLN(p.narzut)}</div></div>
+      <div><div class="modal-stat-label">% marży</div><div class="modal-stat-val">${marzaPct !== null ? marzaPct.toFixed(0) + '%' : '—'}</div></div>
     </div>
   `;
 
@@ -33,7 +36,6 @@ export function openModal(id, extended, extraHtml){
     <div class="modal-grid">
       <div><div class="modal-stat-label">Stan magazynowy</div><div class="modal-stat-val">${p.stan} szt.</div></div>
       <div><div class="modal-stat-label">Sprzedaż 30 dni</div><div class="modal-stat-val">${p.s30} szt.</div></div>
-      <div><div class="modal-stat-label">Zwroty 30 dni</div><div class="modal-stat-val">${p.ret30} szt.</div></div>
       <div><div class="modal-stat-label">% zwrotów</div><div class="modal-stat-val">${p.s30>0 ? Math.min(p.ret30/p.s30*100,100).toFixed(0)+'%':'—'}</div></div>
       ${periodExtras}
     </div>
