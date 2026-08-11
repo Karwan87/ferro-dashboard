@@ -11,13 +11,13 @@ const COLSPAN = 9;
 let currentRows = [];
 let currentFilter = 'all';
 let currentSearch = '';
-let sortState = { key: 'ilDoDomowienia', dir: 'desc' };
+let sortState = { key: 'sales7d', dir: 'desc' };
 
 export async function openReorderHub(){
   navigateTo('screen-reorder-dashboard', 'Do zamówienia / braki');
   currentFilter = 'all';
   currentSearch = '';
-  sortState = { key: 'ilDoDomowienia', dir: 'desc' };
+  sortState = { key: 'sales7d', dir: 'desc' };
   document.getElementById('reorderSearch').value = '';
   highlightFilter('all');
 
@@ -73,7 +73,7 @@ function highlightFilter(key){
 
 function sortLabel(k){
   return {
-    stan: 'stan magazynowy', ilDoDomowienia: 'ilość do domówienia', cenaZakupu: 'cena zakupu',
+    stan: 'stan magazynowy', sales7d: 'sprzedaż 7 dni', cenaZakupu: 'cena zakupu',
     marzaPct: 'marża', zwrotyPct: '% zwrotów', alerty: 'liczba zgłoszeń',
   }[k];
 }
@@ -122,8 +122,8 @@ function renderTable(){
           </div>
         </div>
       </td>
-      <td class="num${belowMin ? ' reorder-below-min' : ''}">${r.stan} / ${r.minStock || '—'}</td>
-      <td class="num">${r.ilDoDomowienia.toLocaleString('pl-PL')}</td>
+      <td class="num${belowMin ? ' reorder-below-min' : ''}">${r.stan}</td>
+      <td class="num">${r.sales7d.toLocaleString('pl-PL')}</td>
       <td class="num">${fmtPLN(r.cenaZakupu)}</td>
       <td class="num">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
       <td class="num">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>

@@ -34,6 +34,7 @@ export async function getReorderList(alertDays = 7){
       stan: p.stan,
       minStock: p.minStock,
       ilDoDomowienia: p.ilDoDomowienia,
+      sales7d: p.s7,
       cenaZakupu: p.cenaZakupu,
       zamowiono: p.zamowiono,
       czyDoDomowienia: p.czyDoDomowienia,
@@ -41,8 +42,8 @@ export async function getReorderList(alertDays = 7){
       ...profitMetrics(p),
       zwrotyPct: p.s30 > 0 ? Math.min(p.ret30 / p.s30 * 100, 100) : null,
     }))
-    // Domyślne sortowanie: ilość do domówienia, malejąco.
-    .sort((a, b) => b.ilDoDomowienia - a.ilDoDomowienia);
+    // Domyślne sortowanie: sprzedaż z ostatnich 7 dni, malejąco.
+    .sort((a, b) => b.sales7d - a.sales7d);
 
   const totals = {
     count: rows.length,
