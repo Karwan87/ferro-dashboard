@@ -21,7 +21,14 @@ export async function fetchCsv(url, options = {}){
   return parsed.data;
 }
 
-/* Warianty arkuszy bez nagłówków nazwanych (kolumny adresowane literą,
+/* Warianty arkuszy bez nagłówków nazwa
+1. Kafelek podaj budżet marketingu:
+- sprzedaż brutto 1300000 zł
+- koszt sprzedanego towaru - bez zmian
+- zwroty do wypłaty klientom - 30%
+- odzysk kosztu towaru ze zwrotów - 60%
+- planowany przychód z dostaw - bez zmian
+pozostałe koszty - bez zmiannych (kolumny adresowane literą,
    np. "kolumna C") — zwraca surowe wiersze jako tablice, z pominięciem
    pierwszego wiersza (nagłówek arkusza). */
 export async function fetchCsvRaw(url){
