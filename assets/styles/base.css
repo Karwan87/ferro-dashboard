@@ -177,6 +177,12 @@ body{
   .modal-grid{grid-template-columns:1fr 1fr;}
 }
 
+/* Modal potwierdzenia (core/confirmModal.js) — węższy niż modal produktu,
+   bez zdjęcia, tylko tytuł + tekst + dwa przyciski. */
+.confirm-modal{max-width:420px;}
+.confirm-modal-text{font-size:13.5px;line-height:1.55;color:#6B6670;margin:4px 0 20px;}
+.confirm-modal-actions{display:flex;justify-content:flex-end;gap:10px;}
+
 /* ---------- DUŻA STATYSTYKA (wskaźnik %, suma do rozliczenia, alerty) ---------- */
 .stat-card{
   background:var(--paper);color:var(--ink);border-radius:10px;

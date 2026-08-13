@@ -107,7 +107,6 @@ export async function loadData(){
           ret30: parseIntSafe(getCell(r,'Returns 30days')),
           minStock: parseIntSafe(getCell(r,'Min stock')),
           czyDoDomowienia: /^tak$/i.test(getCell(r,'Czy do domówienia?').trim()),
-          zamowiono: /^(tak|true)$/i.test(getCell(r,'Zamówiono?').trim()),
           wartoscDomowienia: parseNum(getCell(r,'Wartość Domówienia (netto)')),
           wartoscBraku: parseNum(getCell(r,'Wartość Braku (netto)')),
           ilDoDomowienia: parseIntSafe(getCell(r,'Il. do domówienia')),

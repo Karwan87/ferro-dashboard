@@ -1,16 +1,26 @@
 import { logout } from './auth.js';
 
 /* Wszystkie żądania do danych (poza logowaniem) idą przez Cloudflare Worker
-   i wymagają tokenu sesji wydanego przy logowaniu (patrz core/auth.js). */
-export async function authedFetch(url){
+   i wymagają tokenu sesji wydanego przy logowaniu (patrz core/auth.js).
+   `options` przechodzi wprost do fetch() (method/body/headers), więc ten sam
+   helper obsługuje zarówno odczyt CSV (GET) jak i zapisy koszyka (POST). */
+export async function authedFetch(url, options = {}){
   const token = sessionStorage.getItem('ferro_token');
-  const res = await fetch(url, {cache:'no-store', headers: token ? {Authorization: `Bearer ${token}`} : {}});
+  const headers = { ...(options.headers || {}), ...(token ? {Authorization: `Bearer ${token}`} : {}) };
+  const res = await fetch(url, {cache:'no-store', ...options, headers});
   if(res.status === 401){
     logout();
     throw new Error('Sesja wygasła, zaloguj się ponownie');
   }
   if(!res.ok) throw new Error('HTTP '+res.status);
   return res.text();
+}
+
+/* Jak authedFetch, ale parsuje odpowiedź jako JSON — używane przez koszyk
+   zamówień (core/reorderCart.js), gdzie Worker zwraca stan po każdej akcji. */
+export async function authedFetchJson(url, options = {}){
+  const text = await authedFetch(url, options);
+  return text ? JSON.parse(text) : null;
 }
 
 /* Wspólny helper do pobierania i parsowania plików CSV (PapaParse) —
@@ -50,3 +60,4 @@ export async function fetchCsvRawAll(url){
 export function col(letter){
   return letter.toUpperCase().charCodeAt(0) - 65;
 }
+

@@ -20,13 +20,17 @@ import {
   openReorderHub, applyReorderFilter, applyReorderSearch, openReorderProductModal, setReorderSort,
   toggleReorderQtyForm, cancelReorderQty, confirmReorderQty, cartRemoveFromRow,
   toggleReorderSupplierPanel, toggleReorderSupplier, selectAllReorderSuppliers, clearReorderSuppliers,
+  applyReorderStockFilter,
+  toggleReorderStatusPanel, toggleReorderStatus, selectAllReorderStatuses, clearReorderStatuses,
 } from './components/reorder/reorder.js';
 import { toggleModalCartQty, cancelModalCartQty, confirmModalCartQty } from './core/modal.js';
 import {
   openOrderCart, closeOrderCart, setCartTab, toggleCartCheck, cartRemoveItem,
   sendCartOrder, copyCartMessage, removeSelectedOrdered, updateCartBadge,
   toggleCartSupplierPanel, toggleCartSupplier, selectAllCartSuppliers, clearCartSuppliers,
+  toggleCartSelectAllVisible,
 } from './components/cart/cart.js';
+import { resolveConfirmModal } from './core/confirmModal.js';
 
 window.checkPassword = checkPassword;
 window.logout = logout;
@@ -114,6 +118,11 @@ window.toggleReorderSupplierPanel = toggleReorderSupplierPanel;
 window.toggleReorderSupplier = toggleReorderSupplier;
 window.selectAllReorderSuppliers = selectAllReorderSuppliers;
 window.clearReorderSuppliers = clearReorderSuppliers;
+window.applyReorderStockFilter = applyReorderStockFilter;
+window.toggleReorderStatusPanel = toggleReorderStatusPanel;
+window.toggleReorderStatus = toggleReorderStatus;
+window.selectAllReorderStatuses = selectAllReorderStatuses;
+window.clearReorderStatuses = clearReorderStatuses;
 window.toggleModalCartQty = toggleModalCartQty;
 window.cancelModalCartQty = cancelModalCartQty;
 window.confirmModalCartQty = confirmModalCartQty;
@@ -129,6 +138,8 @@ window.toggleCartSupplierPanel = toggleCartSupplierPanel;
 window.toggleCartSupplier = toggleCartSupplier;
 window.selectAllCartSuppliers = selectAllCartSuppliers;
 window.clearCartSuppliers = clearCartSuppliers;
+window.toggleCartSelectAllVisible = toggleCartSelectAllVisible;
+window.resolveConfirmModal = resolveConfirmModal;
 
 updateCartBadge();
 initAuth();

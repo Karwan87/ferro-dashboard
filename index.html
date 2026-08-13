@@ -94,7 +94,7 @@
       </div>
       <div class="tile" onclick="openReorderHub()">
         <span class="tile-icon">🧾</span>
-        <p class="tile-name">Do zamówienia / braki</p>
+        <p class="tile-name">Zaopatrzenie</p>
         <p class="tile-desc">Produkty oznaczone do domówienia, wg priorytetu zgłoszeń.</p>
       </div>
     </div>
@@ -521,6 +521,16 @@
       <div class="ms-filter" id="reorderSupplierFilterWrap">
         <button type="button" class="ms-filter-btn" onclick="toggleReorderSupplierPanel()">Wszyscy dostawcy ▾</button>
         <div class="ms-filter-panel" id="reorderSupplierFilterPanel"></div>
+      </div>
+      <div class="ms-filter" id="reorderStatusFilterWrap">
+        <button type="button" class="ms-filter-btn" onclick="toggleReorderStatusPanel()">Wszystkie statusy ▾</button>
+        <div class="ms-filter-panel" id="reorderStatusFilterPanel"></div>
+      </div>
+      <div class="range-filter">
+        <label>Stan magazynowy</label>
+        <input type="number" min="0" class="range-filter-input" id="reorderStockMin" placeholder="od" oninput="applyReorderStockFilter()">
+        <span>–</span>
+        <input type="number" min="0" class="range-filter-input" id="reorderStockMax" placeholder="do" oninput="applyReorderStockFilter()">
       </div>
     </div>
     <div class="table-meta">
@@ -1024,7 +1034,7 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th></th><th></th><th>Produkt</th><th>Dostawca</th><th>Ilość</th><th>Wartość</th><th></th>
+              <th><input type="checkbox" id="cartListedSelectAllVisible" onchange="toggleCartSelectAllVisible('listed', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th>Dostawca</th><th>Ilość</th><th>Wartość</th><th></th>
             </tr></thead>
             <tbody id="cartListedBody"></tbody>
           </table>
@@ -1042,7 +1052,7 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th></th><th></th><th>Produkt</th><th>Dostawca</th><th>Zamówiono</th><th>Data</th><th>Dostarczono</th><th>Status</th>
+              <th><input type="checkbox" id="cartOrderedSelectAllVisible" onchange="toggleCartSelectAllVisible('ordered', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th>Dostawca</th><th>Zamówiono</th><th>Data</th><th>Dostarczono</th><th>Status</th>
             </tr></thead>
             <tbody id="cartOrderedBody"></tbody>
           </table>
@@ -1050,6 +1060,20 @@
         <div class="cart-summary-row">
           <button class="cart-action-btn" onclick="removeSelectedOrdered()">Usuń zaznaczone z listy</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL POTWIERDZENIA (generyczny — patrz core/confirmModal.js) -->
+<div class="overlay" id="overlayConfirm" onclick="if(event.target===this)resolveConfirmModal(false)">
+  <div class="modal confirm-modal">
+    <div class="modal-body">
+      <div class="modal-title" id="confirmModalTitle"></div>
+      <p class="confirm-modal-text" id="confirmModalMessage"></p>
+      <div class="confirm-modal-actions">
+        <button class="cart-action-btn" onclick="resolveConfirmModal(false)">Anuluj</button>
+        <button class="cart-action-btn cart-action-btn-primary" id="confirmModalConfirmBtn" onclick="resolveConfirmModal(true)">Usuń mimo to</button>
       </div>
     </div>
   </div>

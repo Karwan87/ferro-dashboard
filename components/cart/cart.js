@@ -5,6 +5,7 @@ import {
   getCartItems, getCartCount, removeFromCart, markOrdered,
   getOrderedItems, removeOrderRecords, getDeliveryProgress,
 } from '../../core/reorderCart.js';
+import { showConfirm } from '../../core/confirmModal.js';
 
 /* Koszyk zamówień — ETAP 1 (patrz core/reorderCart.js): stan lokalny,
    niezsynchronizowany między urządzeniami/użytkownikami. Ikona w topbarze
@@ -14,6 +15,15 @@ let currentTab = 'listed';
 let selectedSuppliers = new Set();
 let supplierPanelOpen = false;
 let checkedIds = new Set();
+// Id-y aktualnie WIDOCZNYCH wierszy (po filtrze dostawcy) w każdej zakładce —
+// osobno od checkedIds, żeby "zaznacz widoczne pozycje" dotykało tylko tego,
+// co naprawdę widać, nie całego koszyka/listy zamówionych w tle innego filtra.
+let visibleListedIds = [];
+let visibleOrderedIds = [];
+// Ostatnio policzony postęp dostawy per produkt (patrz renderCartTabs) —
+// removeSelectedOrdered czyta stąd zamiast liczyć drugi raz, żeby wiedzieć,
+// czy usuwane pozycje mają jeszcze niedostarczoną resztę (ostrzeżenie).
+let lastProgressById = new Map();
 
 function productById(id){ return products.find(p => p.id === id); }
 function fmtDatePl(iso){ return iso ? new Date(iso).toLocaleDateString('pl-PL') : '—'; }
@@ -113,6 +123,29 @@ export function toggleCartCheck(id){
   renderCartTabs();
 }
 
+/* "Zaznacz widoczne pozycje" w nagłówku tabeli — działa TYLKO na wiersze,
+   które faktycznie widać po zastosowaniu filtra dostawcy (visibleListedIds/
+   visibleOrderedIds, patrz renderCartTabs), nie na cały koszyk/listę
+   zamówionych. Zaznaczenia poza bieżącym filtrem zostają nietknięte. */
+export function toggleCartSelectAllVisible(tab, checked){
+  const ids = tab === 'listed' ? visibleListedIds : visibleOrderedIds;
+  ids.forEach(id => { if(checked) checkedIds.add(id); else checkedIds.delete(id); });
+  renderCartTabs();
+}
+
+function syncSelectAllCheckbox(elId, items){
+  const cb = document.getElementById(elId);
+  if(!cb) return;
+  if(items.length === 0){
+    cb.checked = false; cb.indeterminate = false; cb.disabled = true;
+    return;
+  }
+  cb.disabled = false;
+  const selectedCount = items.filter(it => checkedIds.has(it.id)).length;
+  cb.checked = selectedCount === items.length;
+  cb.indeterminate = selectedCount > 0 && selectedCount < items.length;
+}
+
 export function cartRemoveItem(id){
   removeFromCart(id);
 }
@@ -133,12 +166,17 @@ async function renderCartTabs(){
 
   const bySupplier = it => selectedSuppliers.size === 0 || selectedSuppliers.has(it.dostawca);
   const listedFiltered = listedItems.filter(bySupplier);
+  visibleListedIds = listedFiltered.map(it => it.id);
   renderListedTable(listedFiltered);
+  syncSelectAllCheckbox('cartListedSelectAllVisible', listedFiltered);
   updateMessagePreview(listedFiltered);
 
   const orderedFiltered = orderedItems.filter(bySupplier);
+  visibleOrderedIds = orderedFiltered.map(it => it.id);
   const progresses = await Promise.all(orderedFiltered.map(it => getDeliveryProgress(it.id)));
+  orderedFiltered.forEach((it, i) => lastProgressById.set(it.id, progresses[i]));
   renderOrderedTable(orderedFiltered.map((it, i) => ({ ...it, progress: progresses[i] })));
+  syncSelectAllCheckbox('cartOrderedSelectAllVisible', orderedFiltered);
 
   updateCartBadge();
 }
@@ -242,12 +280,33 @@ export function copyCartMessage(){
   navigator.clipboard?.writeText(el.value);
 }
 
-export function removeSelectedOrdered(){
+/* Ręczne usunięcie z "Zamówione" — dla w pełni dostarczonych pozycji leci
+   od razu (to zwykłe sprzątanie po zrealizowanym zamówieniu, i tak dzieje
+   się to automatycznie następnego dnia). Dla NIEKOMPLETNYCH ostrzegamy
+   modalem: usunięcie zamyka nasłuch dla tej tury na tym, co przyszło do tej
+   pory — nowe zamówienie tego produktu policzy dostawy znów od zera. */
+export async function removeSelectedOrdered(){
   if(checkedIds.size === 0){
     alert('Zaznacz produkty do usunięcia z listy.');
     return;
   }
-  removeOrderRecords([...checkedIds]);
+  const ids = [...checkedIds];
+  const incompleteNames = ids
+    .filter(id => !lastProgressById.get(id)?.isComplete)
+    .map(id => productById(id)?.name || `ID ${id}`);
+
+  if(incompleteNames.length > 0){
+    const ok = await showConfirm(
+      'Niekompletna dostawa',
+      `Część zaznaczonych produktów nie jest jeszcze w pełni dostarczona: ${incompleteNames.join(', ')}. ` +
+      `Usunięcie z listy zamknie nasłuch dostaw dla tej tury — to, co przyszło do tej pory, zostanie zignorowane. ` +
+      `Nowe zamówienie tego samego produktu policzy dostawy od zera. Kontynuować?`,
+      'Usuń mimo to'
+    );
+    if(!ok) return;
+  }
+
+  removeOrderRecords(ids);
   checkedIds = new Set();
 }
 

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --check \"D:\\\\Kodowanie\\\\Projekty Ferro\\\\Ferro Dashboard\\\\ferro-dashboard\\\\components\\\\reorder\\\\reorder.js\")",
+      "PowerShell(node --check \"D:\\\\Kodowanie\\\\Projekty Ferro\\\\Ferro Dashboard\\\\ferro-dashboard\\\\core\\\\confirmModal.js\")",
+      "PowerShell(node --check \"D:\\\\Kodowanie\\\\Projekty Ferro\\\\Ferro Dashboard\\\\ferro-dashboard\\\\core\\\\data.js\")",
+      "PowerShell(node --check \"D:\\\\Kodowanie\\\\Projekty Ferro\\\\Ferro Dashboard\\\\ferro-dashboard\\\\core\\\\reorderData.js\")",
+      "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/worker/src/**)",
+      "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/worker/**)"
+    ],
+    "additionalDirectories": [
+      "D:\\Kodowanie\\Projekty Ferro\\Ferro Dashboard\\ferro-dashboard-data\\worker\\src",
+      "D:\\Kodowanie\\Projekty Ferro\\Ferro Dashboard\\ferro-dashboard-data\\worker"
+    ]
+  }
+}

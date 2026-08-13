@@ -16,16 +16,37 @@ let selectedSuppliers = new Set();
 let supplierPanelOpen = false;
 let sortState = { key: 'sales7d', dir: 'desc' };
 let qtyFormOpenFor = null;
+let stockMin = null;
+let stockMax = null;
+let selectedStatuses = new Set();
+let statusPanelOpen = false;
+
+/* Stałe 3 kategorie statusu (w przeciwieństwie do dostawców, nie wynikają
+   z danych — pokazujemy je zawsze, niezależnie czy akurat coś w danym
+   statusie istnieje). Etykiety 1:1 z tym, co pokazuje statusCellHtml.
+   Stara ręczna flaga arkusza "Zamówiono?" wycofana — koszyk jest jedynym
+   śledzonym źródłem statusu zamówienia. */
+const STATUS_OPTIONS = [
+  { key: 'listed', label: 'Oczekujący' },
+  { key: 'ordered', label: 'Zamówiono' },
+  { key: 'czeka', label: 'Czeka' },
+];
 
 export async function openReorderHub(){
-  navigateTo('screen-reorder-dashboard', 'Do zamówienia / braki');
+  navigateTo('screen-reorder-dashboard', 'Zaopatrzenie');
   currentFilter = 'all';
   currentSearch = '';
   selectedSuppliers = new Set();
   supplierPanelOpen = false;
   sortState = { key: 'sales7d', dir: 'desc' };
   qtyFormOpenFor = null;
+  stockMin = null;
+  stockMax = null;
+  selectedStatuses = new Set();
+  statusPanelOpen = false;
   document.getElementById('reorderSearch').value = '';
+  document.getElementById('reorderStockMin').value = '';
+  document.getElementById('reorderStockMax').value = '';
   highlightFilter('all');
 
   ['reorderCount', 'reorderDoDomowienia', 'reorderWaiting'].forEach(id => {
@@ -69,6 +90,16 @@ export function applyReorderFilter(key){
 
 export function applyReorderSearch(value){
   currentSearch = value;
+  renderTable();
+}
+
+/* Zakres "od–do" na stanie magazynowym — pole puste znaczy brak ograniczenia
+   z tej strony (np. samo "do 3" pokaże też stan 0). */
+export function applyReorderStockFilter(){
+  const minVal = document.getElementById('reorderStockMin').value;
+  const maxVal = document.getElementById('reorderStockMax').value;
+  stockMin = minVal === '' ? null : Number(minVal);
+  stockMax = maxVal === '' ? null : Number(maxVal);
   renderTable();
 }
 
@@ -131,6 +162,57 @@ document.addEventListener('click', e => {
   }
 });
 
+export function toggleReorderStatusPanel(){
+  statusPanelOpen = !statusPanelOpen;
+  renderStatusPanel();
+}
+
+export function toggleReorderStatus(key){
+  if(selectedStatuses.has(key)) selectedStatuses.delete(key); else selectedStatuses.add(key);
+  renderTable();
+  renderStatusPanel();
+}
+
+export function selectAllReorderStatuses(){
+  selectedStatuses = new Set(STATUS_OPTIONS.map(o => o.key));
+  renderTable();
+  renderStatusPanel();
+}
+
+export function clearReorderStatuses(){
+  selectedStatuses = new Set();
+  renderTable();
+  renderStatusPanel();
+}
+
+function renderStatusPanel(){
+  const panel = document.getElementById('reorderStatusFilterPanel');
+  const btn = document.querySelector('#reorderStatusFilterWrap .ms-filter-btn');
+  panel.classList.toggle('open', statusPanelOpen);
+  if(statusPanelOpen){
+    panel.innerHTML = `
+      <div class="ms-filter-actions">
+        <button type="button" onclick="selectAllReorderStatuses()">Zaznacz wszystko</button>
+        <button type="button" onclick="clearReorderStatuses()">Wyczyść</button>
+      </div>
+      ${STATUS_OPTIONS.map(o => `
+        <label class="ms-filter-option">
+          <input type="checkbox" ${selectedStatuses.has(o.key) ? 'checked' : ''} onchange="toggleReorderStatus('${o.key}')">
+          ${o.label}
+        </label>`).join('')}
+    `;
+  }
+  btn.textContent = (selectedStatuses.size === 0 ? 'Wszystkie statusy' : `Status (${selectedStatuses.size})`) + ' ▾';
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('reorderStatusFilterWrap');
+  if(statusPanelOpen && wrap && !wrap.contains(e.target)){
+    statusPanelOpen = false;
+    renderStatusPanel();
+  }
+});
+
 function highlightFilter(key){
   document.querySelectorAll('#reorderFilters .pill').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.key === key);
@@ -144,13 +226,11 @@ function sortLabel(k){
   }[k];
 }
 
-/* "Zamówione" = efektywnie zamówione — albo przez nasz koszyk, albo (dla
-   produktów, których koszyk jeszcze nie dotknął) starą flagą z arkusza Panel
-   ("Zamówiono?"). Te dwa źródła nie są dziś spięte (ETAP 1), więc trzymamy
-   je złączone logicznym LUB, żeby nic nie "znikało" tylko dlatego, że koszyk
-   o danym produkcie jeszcze nic nie wie. */
+/* "Zamówione" = status 'ordered' w koszyku (core/reorderCart.js) — jedyne
+   dziś śledzone źródło. Stara ręczna flaga arkusza "Zamówiono?" wycofana
+   jako zbędna (i tak nigdy się automatycznie nie odświeżała). */
 function isEffectivelyOrdered(r){
-  return getProductCartStatus(r.id) === 'ordered' || r.zamowiono;
+  return getProductCartStatus(r.id) === 'ordered';
 }
 
 /* Nagłówek budowany na nowo przy każdym renderze — w zakładce "Zamówione"
@@ -191,6 +271,9 @@ function renderTable(){
   if(currentFilter === 'ordered') rows = rows.filter(isEffectivelyOrdered);
   if(currentSearch) rows = rows.filter(r => matchesProductQuery(currentSearch, r.id, r.name));
   if(selectedSuppliers.size > 0) rows = rows.filter(r => selectedSuppliers.has(r.dostawca));
+  if(selectedStatuses.size > 0) rows = rows.filter(r => selectedStatuses.has(rowStatusKey(r)));
+  if(stockMin !== null) rows = rows.filter(r => r.stan >= stockMin);
+  if(stockMax !== null) rows = rows.filter(r => r.stan <= stockMax);
 
   document.querySelectorAll('#reorderTableHead th[data-key]').forEach(th => {
     th.classList.toggle('sorted', th.dataset.key === sortState.key);
@@ -247,15 +330,22 @@ function renderTable(){
   enrichOrderedStatuses(rows);
 }
 
-/* Status z koszyka (core/reorderCart.js) ma pierwszeństwo, bo to nasza,
-   bieżąca praca — dopiero gdy produkt nigdy nie trafił do koszyka, pokazujemy
-   dawną flagę z arkusza Panel ("Zamówiono?"). ETAP 1: te dwa źródła nie są
-   jeszcze spięte (patrz core/reorderCart.js), więc mogą się rozjeżdżać. */
-function statusCellHtml(r){
+/* Status wyłącznie z koszyka (core/reorderCart.js) — jedyne dziś śledzone
+   źródło prawdy o zamówieniu (stara ręczna flaga arkusza "Zamówiono?"
+   wycofana). Ten sam klucz zasila zarówno etykietę w tabeli, jak i filtr
+   statusów (STATUS_OPTIONS) — jedno źródło prawdy dla obu. */
+function rowStatusKey(r){
   const status = getProductCartStatus(r.id);
-  if(status === 'listed') return '<span class="reorder-badge reorder-badge-listed">oczekujący</span>';
-  if(status === 'ordered') return '<span class="reorder-badge reorder-badge-ordered">zamówiono…</span>';
-  return r.zamowiono ? '<span class="reorder-badge reorder-badge-ok">zamówione</span>' : '<span class="reorder-badge">czeka</span>';
+  if(status === 'listed') return 'listed';
+  if(status === 'ordered') return 'ordered';
+  return 'czeka';
+}
+
+function statusCellHtml(r){
+  const key = rowStatusKey(r);
+  if(key === 'listed') return '<span class="reorder-badge reorder-badge-listed">oczekujący</span>';
+  if(key === 'ordered') return '<span class="reorder-badge reorder-badge-ordered">zamówiono…</span>';
+  return '<span class="reorder-badge">czeka</span>';
 }
 
 /* Data zamówienia + postęp dostawy (X/Y) dla statusu "zamówiono" — osobny,
