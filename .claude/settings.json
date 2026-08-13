@@ -8,7 +8,9 @@
       "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/worker/src/**)",
       "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/worker/**)",
       "PowerShell(node --check \"D:\\\\Kodowanie\\\\Projekty Ferro\\\\Ferro Dashboard\\\\ferro-dashboard\\\\core\\\\deliveriesData.js\")",
-      "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/.github/workflows/**)"
+      "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/.github/workflows/**)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command git -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "D:\\Kodowanie\\Projekty Ferro\\Ferro Dashboard\\ferro-dashboard-data\\worker\\src",
