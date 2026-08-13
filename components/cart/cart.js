@@ -250,13 +250,12 @@ function buildOrderMessages(items){
 
 /* Podgląd na żywo — aktualizuje się przy każdym zaznaczeniu/odznaczeniu
    checkboxa w zakładce "Koszyk" (patrz toggleCartCheck -> renderCartTabs).
-   Gdy nic nie jest zaznaczone, ZOSTAWIA ostatnią wygenerowaną treść (np. tuż
-   po "Zamów zaznaczone", żeby dało się ją jeszcze skopiować), zamiast czyścić
-   pole na pusto. */
+   Zdjęcie zaznaczenia ze WSZYSTKICH pozycji czyści pole całkowicie. */
 function updateMessagePreview(listedItems){
   const checkedListed = listedItems.filter(it => checkedIds.has(it.id));
-  if(checkedListed.length === 0) return;
-  document.getElementById('cartMessageOutput').value = buildOrderMessages(checkedListed);
+  document.getElementById('cartMessageOutput').value = checkedListed.length > 0
+    ? buildOrderMessages(checkedListed)
+    : '';
 }
 
 /* Zaznaczone pozycje z koszyka -> status "zamówiono" (z dzisiejszą datą).
