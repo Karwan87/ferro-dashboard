@@ -109,11 +109,23 @@ async function markDelivered(id){
 /* Postęp realizacji zamówienia — ile z zamówionych sztuk już przyszło w
    dostawach PO dacie zamówienia (włącznie). Reguła: dostarczono >= zamówiono
    (dla zamówienia 1 szt. wystarczy 1 szt. w dostawie — to nie jest osobny
-   przypadek, tylko naturalny wynik tej samej nierówności). */
+   przypadek, tylko naturalny wynik tej samej nierówności).
+
+   UWAGA na parsowanie daty: orderedAt to zwykły string "YYYY-MM-DD" (Worker
+   liczy go w UTC). `new Date("YYYY-MM-DD")` interpretuje TAKI string jako
+   północ UTC — a core/deliveriesData.js (przez format.js:parseDate) liczy
+   datę dostawy jako północ czasu LOKALNEGO. W Polsce (UTC+1/+2) to dwie
+   różne chwile: północ lokalna wypada WCZEŚNIEJ niż północ UTC tego samego
+   dnia, więc dostawa z tego samego dnia co zamówienie zawsze przegrywała
+   porównanie `d < sinceDate` i była cicho odrzucana. Budujemy więc sinceDate
+   ręcznie, tym samym sposobem (lokalnie) co parseDate, żeby obie strony
+   porównania liczyły "ten sam dzień" identycznie. */
 export async function getDeliveryProgress(id){
   const r = record(id);
   if(r.orderedQty <= 0) return null;
-  const deliveredQty = await getDeliveredQtySince(id, new Date(r.orderedAt));
+  const [oy, om, od] = r.orderedAt.split('-').map(Number);
+  const sinceDate = new Date(oy, om - 1, od);
+  const deliveredQty = await getDeliveredQtySince(id, sinceDate);
   const isComplete = deliveredQty >= r.orderedQty;
   // Zapisujemy wykrycie tylko RAZ (dopóki nie jest jeszcze zapisane w D1) —
   // bez tego warunku każdy render tabeli odpalałby zapis od nowa.
