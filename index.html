@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="components/stock/stock.css">
 <link rel="stylesheet" href="components/suppliers/suppliers.css">
 <link rel="stylesheet" href="components/reorder/reorder.css">
+<link rel="stylesheet" href="components/cart/cart.css">
 </head>
 <body>
 
@@ -39,6 +40,7 @@
     <div class="status-bar">
       <span class="live-flag loading" id="liveFlag"><span class="live-dot"></span><span id="liveFlagText">Ładowanie…</span></span>
       <span class="last-updated" id="loggedInAs"></span>
+      <button class="refresh-btn cart-btn" onclick="openOrderCart()">🛒 Koszyk <span class="cart-badge" id="cartBadge">0</span></button>
       <button class="refresh-btn" onclick="loadData()">↻ Odśwież</button>
       <button class="refresh-btn" onclick="logout()">⎋ Wyloguj</button>
       <span class="last-updated" id="lastUpdated"></span>
@@ -510,30 +512,23 @@
     <div class="finance-error" id="reorderError"></div>
 
     <div class="finance-filters pill-row" id="reorderFilters">
-      <button class="pill" data-key="all" onclick="applyReorderFilter('all')">Wszystko</button>
-      <button class="pill" data-key="waiting" onclick="applyReorderFilter('waiting')">Czeka na zamówienie</button>
-      <button class="pill" data-key="ordered" onclick="applyReorderFilter('ordered')">Już zamówione</button>
+      <button class="pill" data-key="all" onclick="applyReorderFilter('all')">Lista produktów</button>
+      <button class="pill" data-key="ordered" onclick="applyReorderFilter('ordered')">Zamówione</button>
     </div>
 
     <div class="table-search-row">
       <input type="text" class="table-search" id="reorderSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applyReorderSearch(this.value)">
+      <div class="ms-filter" id="reorderSupplierFilterWrap">
+        <button type="button" class="ms-filter-btn" onclick="toggleReorderSupplierPanel()">Wszyscy dostawcy ▾</button>
+        <div class="ms-filter-panel" id="reorderSupplierFilterPanel"></div>
+      </div>
     </div>
     <div class="table-meta">
       <p id="reorderTableInfo"></p>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr id="reorderTableHead">
-          <th class="rank sticky-col"></th>
-          <th class="identity-col sticky-col">Produkt</th>
-          <th data-key="stan" onclick="setReorderSort('stan')">Stan <span class="arrow"></span></th>
-          <th data-key="sales7d" onclick="setReorderSort('sales7d')">Sprzedaż 7D <span class="arrow"></span></th>
-          <th data-key="cenaZakupu" onclick="setReorderSort('cenaZakupu')">Cena zakupu <span class="arrow"></span></th>
-          <th data-key="marzaPct" onclick="setReorderSort('marzaPct')">Marża <span class="arrow"></span></th>
-          <th data-key="zwrotyPct" onclick="setReorderSort('zwrotyPct')">% zwrotów <span class="arrow"></span></th>
-          <th data-key="alerty" onclick="setReorderSort('alerty')">Alerty (7 dni) <span class="arrow"></span></th>
-          <th>Status</th>
-        </tr></thead>
+        <thead><tr id="reorderTableHead"></tr></thead>
         <tbody id="reorderTableBody"></tbody>
       </table>
     </div>
@@ -993,6 +988,7 @@
     <div class="modal-photo-wrap">
       <button class="modal-close" onclick="closeModal()">✕</button>
       <img class="modal-photo" id="modalPhoto" src="" alt="">
+      <div id="modalCartAction" class="modal-cart-action"></div>
     </div>
     <div class="modal-body">
       <div class="modal-id" id="modalId"></div>
@@ -1000,6 +996,61 @@
       <div id="modalGrid"></div>
       <div class="modal-extra" id="modalExtra"></div>
       <div class="modal-note" id="modalNote"></div>
+    </div>
+  </div>
+</div>
+
+<!-- KOSZYK ZAMÓWIEŃ (ETAP 1 — stan lokalny, patrz core/reorderCart.js) -->
+<div class="overlay" id="overlayCart" onclick="if(event.target===this)closeOrderCart()">
+  <div class="modal cart-modal">
+    <button class="modal-close" onclick="closeOrderCart()">✕</button>
+    <div class="modal-body">
+      <div class="modal-title">Koszyk zamówień</div>
+
+      <div class="finance-filters pill-row" id="cartTabs">
+        <button class="pill active" data-key="listed" onclick="setCartTab('listed')">Koszyk (<span id="cartTabListedCount">0</span>)</button>
+        <button class="pill" data-key="ordered" onclick="setCartTab('ordered')">Zamówione (<span id="cartTabOrderedCount">0</span>)</button>
+      </div>
+
+      <div class="finance-range-row">
+        <label>Dostawca</label>
+        <div class="ms-filter" id="cartSupplierFilterWrap">
+          <button type="button" class="ms-filter-btn" onclick="toggleCartSupplierPanel()">Wszyscy dostawcy ▾</button>
+          <div class="ms-filter-panel" id="cartSupplierFilterPanel"></div>
+        </div>
+      </div>
+
+      <div id="cartListedView">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th></th><th></th><th>Produkt</th><th>Dostawca</th><th>Ilość</th><th>Wartość</th><th></th>
+            </tr></thead>
+            <tbody id="cartListedBody"></tbody>
+          </table>
+        </div>
+        <div class="cart-summary-row">
+          <span id="cartListedTotal"></span>
+          <button class="cart-action-btn cart-action-btn-primary" onclick="sendCartOrder()">Zamów zaznaczone</button>
+        </div>
+        <p class="finance-range-label">Treść zamówienia (osobny blok per dostawca) pojawia się automatycznie po zaznaczeniu checkboxów powyżej:</p>
+        <textarea id="cartMessageOutput" class="cart-message-output" readonly placeholder="Zaznacz produkty w tabeli powyżej, żeby zobaczyć tu gotową treść do skopiowania…"></textarea>
+        <button class="cart-action-btn" onclick="copyCartMessage()">📋 Kopiuj treść</button>
+      </div>
+
+      <div id="cartOrderedView" style="display:none">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th></th><th></th><th>Produkt</th><th>Dostawca</th><th>Zamówiono</th><th>Data</th><th>Dostarczono</th><th>Status</th>
+            </tr></thead>
+            <tbody id="cartOrderedBody"></tbody>
+          </table>
+        </div>
+        <div class="cart-summary-row">
+          <button class="cart-action-btn" onclick="removeSelectedOrdered()">Usuń zaznaczone z listy</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>

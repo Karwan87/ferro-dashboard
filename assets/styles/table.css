@@ -15,6 +15,28 @@
 }
 .table-search::placeholder{color:#ADA694;}
 
+/* Filtr wielowyboru "po excelowemu" (np. dostawca) — przycisk pokazujący
+   liczbę zaznaczonych + rozwijany panel z checkboxami, zamiast pojedynczego
+   <select>, żeby dało się zaznaczyć kilka wartości naraz. */
+.ms-filter{position:relative;display:inline-block;}
+.ms-filter-btn{
+  font-family:'Inter',sans-serif;font-size:13px;padding:8px 12px;border:1px solid #DCD3C0;
+  border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;white-space:nowrap;
+}
+.ms-filter-btn:hover{border-color:var(--gold);}
+.ms-filter-panel{
+  display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:20;min-width:220px;max-height:280px;
+  overflow-y:auto;background:#fff;border:1px solid #DCD3C0;border-radius:8px;padding:8px;
+  box-shadow:0 6px 18px rgba(0,0,0,.18);
+}
+.ms-filter-panel.open{display:block;}
+.ms-filter-actions{display:flex;justify-content:space-between;gap:6px;padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid #EFE9DC;}
+.ms-filter-actions button{
+  font-family:'Inter',sans-serif;font-size:11px;color:#6B6670;background:none;border:none;cursor:pointer;text-decoration:underline;
+}
+.ms-filter-option{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:13px;color:var(--ink);cursor:pointer;white-space:nowrap;}
+.ms-filter-option input{cursor:pointer;}
+
 /* overflow-x:auto zamiast hidden — widoki z większą liczbą kolumn mogą być
    szersze niż kontener; przewijanie w poziomie zamiast przycinania gwarantuje,
    że żadna kolumna nie zniknie, niezależnie od szerokości ekranu. Brak sztywnego

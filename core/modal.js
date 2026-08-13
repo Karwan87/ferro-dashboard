@@ -1,9 +1,16 @@
 import { products } from './data.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from './format.js';
 import { pushModalState, requestModalClose } from './router.js';
+import { addToCart, getProductCartStatus, getOrderState } from './reorderCart.js';
+
+let currentModalProductId = null;
+let modalCartQtyFormOpen = false;
 
 export function openModal(id, extended, extraHtml){
   const p = products.find(x=>x.id===id);
+  currentModalProductId = id;
+  modalCartQtyFormOpen = false;
+  renderModalCartAction();
   const modalPhoto = document.getElementById('modalPhoto');
   modalPhoto.src = imgUrl(p.img) || PLACEHOLDER;
   modalPhoto.setAttribute('referrerpolicy','no-referrer');
@@ -65,4 +72,51 @@ export function closeModal(){
   requestModalClose();
 }
 
+/* Akcja "Zamów" w prawym dolnym rogu zdjęcia modala — ten sam koszyk
+   (core/reorderCart.js) co kolumna "Akcje" w module "Do zamówienia",
+   dostępny z KAŻDEGO modala produktu w apce, nie tylko z tego modułu. */
+function renderModalCartAction(){
+  const el = document.getElementById('modalCartAction');
+  if(!el || currentModalProductId == null) return;
+  const id = currentModalProductId;
+
+  if(modalCartQtyFormOpen){
+    el.innerHTML = `
+      <div class="modal-cart-qty-form">
+        <input type="number" min="1" value="1" id="modalCartQtyInput">
+        <button onclick="confirmModalCartQty()">OK</button>
+        <button onclick="cancelModalCartQty()">✕</button>
+      </div>`;
+    document.getElementById('modalCartQtyInput').focus();
+    return;
+  }
+
+  // Status (jeśli jest) to tylko INFORMACJA — przycisk "Zamów" zostaje
+  // widoczny niezależnie od niego, bo zawsze można domówić kolejną turę,
+  // nawet gdy poprzednia jest już w koszyku albo wysłana do dostawcy.
+  const status = getProductCartStatus(id);
+  const badge = status === 'listed'
+    ? `<span class="modal-cart-badge">w koszyku: ${getOrderState(id).listedQty} szt.</span>`
+    : status === 'ordered'
+      ? `<span class="modal-cart-badge">w zamówieniu</span>`
+      : '';
+  el.innerHTML = `${badge}<button class="modal-cart-btn" onclick="toggleModalCartQty()">🛒 Zamów</button>`;
+}
+
+export function toggleModalCartQty(){
+  modalCartQtyFormOpen = !modalCartQtyFormOpen;
+  renderModalCartAction();
+}
+export function cancelModalCartQty(){
+  modalCartQtyFormOpen = false;
+  renderModalCartAction();
+}
+export function confirmModalCartQty(){
+  const qty = Number(document.getElementById('modalCartQtyInput').value) || 0;
+  if(qty > 0) addToCart(currentModalProductId, qty);
+  modalCartQtyFormOpen = false;
+  renderModalCartAction();
+}
+
+document.addEventListener('ferro:cart-changed', () => { if(!modalCartQtyFormOpen) renderModalCartAction(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
