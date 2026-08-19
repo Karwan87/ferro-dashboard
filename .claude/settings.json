@@ -10,11 +10,18 @@
       "PowerShell(node --check \"D:\\\\Kodowanie\\\\Projekty Ferro\\\\Ferro Dashboard\\\\ferro-dashboard\\\\core\\\\deliveriesData.js\")",
       "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/.github/workflows/**)",
       "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
-      "PowerShell(Get-Command git -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Command git -ErrorAction SilentlyContinue)",
+      "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/scripts/**)",
+      "PowerShell(Get-Command python -ErrorAction SilentlyContinue)",
+      "PowerShell(python -m py_compile \"D:\\\\Kodowanie\\\\Projekty Ferro\\\\Ferro Dashboard\\\\ferro-dashboard-data\\\\scripts\\\\update_orders.py\")",
+      "PowerShell(python -m py_compile \"D:\\\\Kodowanie\\\\Projekty Ferro\\\\Ferro Dashboard\\\\ferro-dashboard-data\\\\scripts\\\\update_data.py\")",
+      "Read(//d/Kodowanie/Projekty Ferro/Ferro Dashboard/ferro-dashboard-data/**)"
     ],
     "additionalDirectories": [
       "D:\\Kodowanie\\Projekty Ferro\\Ferro Dashboard\\ferro-dashboard-data\\worker\\src",
-      "D:\\Kodowanie\\Projekty Ferro\\Ferro Dashboard\\ferro-dashboard-data\\worker"
+      "D:\\Kodowanie\\Projekty Ferro\\Ferro Dashboard\\ferro-dashboard-data\\worker",
+      "D:\\Kodowanie\\Projekty Ferro\\Ferro Dashboard\\ferro-dashboard-data\\scripts",
+      "D:\\Kodowanie\\Projekty Ferro\\Ferro Dashboard\\ferro-dashboard-data\\.github\\workflows"
     ]
   }
 }
