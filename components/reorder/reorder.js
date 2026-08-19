@@ -8,6 +8,12 @@ import { addToCart, removeFromCart, getOrderState, getProductCartStatus, getDeli
 
 const ALERT_WINDOW_DAYS = 7; // ta sama liczba dni co przy budowie listy (getReorderList(7))
 const COLSPAN = 10;
+// Baza ma tysiące produktów — renderowanie wszystkich wierszy NARAZ (każdy ze
+// zdjęciem, więc tysiące jednoczesnych żądań do assets.ferroboutique.pl) było
+// głównym źródłem kilkusekundowego zawieszenia przy wejściu w ten ekran.
+// Renderujemy więc stronami po PAGE_SIZE, dokładając kolejne partie w miarę
+// zjeżdżania w dół (IntersectionObserver na sentinelu pod tabelą).
+const PAGE_SIZE = 100;
 
 let currentRows = [];
 let currentFilter = 'all';
@@ -20,6 +26,9 @@ let stockMin = null;
 let stockMax = null;
 let selectedStatuses = new Set();
 let statusPanelOpen = false;
+let filteredSortedRows = [];
+let renderedCount = 0;
+let loadMoreObserver = null;
 
 /* Stałe 3 kategorie statusu (w przeciwieństwie do dostawców, nie wynikają
    z danych — pokazujemy je zawsze, niezależnie czy akurat coś w danym
@@ -34,6 +43,7 @@ const STATUS_OPTIONS = [
 
 export async function openReorderHub(){
   navigateTo('screen-reorder-dashboard', 'Zaopatrzenie');
+  setupLoadMoreObserver();
   currentFilter = 'all';
   currentSearch = '';
   selectedSuppliers = new Set();
@@ -259,6 +269,35 @@ function currentColspan(){
   return currentFilter === 'ordered' ? COLSPAN + 1 : COLSPAN;
 }
 
+function rowHtml(r, i, isOrderedTab){
+  const belowMin = r.minStock > 0 && r.stan < r.minStock;
+  const orderedCells = isOrderedTab
+    ? `<td id="reorderDateCell_${r.id}">—</td><td id="reorderDeliveredCell_${r.id}">—</td>`
+    : '';
+  const actionsCell = isOrderedTab ? '' : `<td onclick="event.stopPropagation()">${actionsCellHtml(r)}</td>`;
+  return `<tr onclick="openReorderProductModal(${r.id})">
+      <td class="rank sticky-col">${i + 1}</td>
+      <td class="identity-col sticky-col">
+        <div class="prod-cell">
+          <img class="prod-thumb" src="${imgUrl(r.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
+          <div>
+            <div class="prod-name">${r.name}</div>
+            <div class="prod-id">ID ${r.id}${r.dostawca ? ' · ' + r.dostawca : ''}</div>
+          </div>
+        </div>
+      </td>
+      <td class="num${belowMin ? ' reorder-below-min' : ''}">${r.stan}</td>
+      <td class="num">${r.sales7d.toLocaleString('pl-PL')}</td>
+      <td class="num">${fmtPLN(r.cenaZakupu)}</td>
+      <td class="num">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num">${r.alerty > 0 ? `<span class="reorder-alert-badge">${r.alerty}</span>` : '—'}</td>
+      <td id="reorderStatusCell_${r.id}">${statusCellHtml(r)}</td>
+      ${orderedCells}
+      ${actionsCell}
+    </tr>`;
+}
+
 function renderTable(){
   const info = document.getElementById('reorderTableInfo');
   const tbody = document.getElementById('reorderTableBody');
@@ -288,6 +327,9 @@ function renderTable(){
     return (av - bv) * dir;
   });
 
+  filteredSortedRows = rows;
+  renderedCount = 0;
+
   if(rows.length === 0){
     info.textContent = currentRows.length === 0
       ? 'Brak produktów.'
@@ -296,38 +338,42 @@ function renderTable(){
     return;
   }
 
-  info.textContent = `${rows.length} produktów · sortowanie: ${sortLabel(sortState.key)} ${sortState.dir === 'asc' ? 'rosnąco' : 'malejąco'}`;
-  const isOrderedTab = currentFilter === 'ordered';
-  tbody.innerHTML = rows.map((r, i) => {
-    const belowMin = r.minStock > 0 && r.stan < r.minStock;
-    const orderedCells = isOrderedTab
-      ? `<td id="reorderDateCell_${r.id}">—</td><td id="reorderDeliveredCell_${r.id}">—</td>`
-      : '';
-    const actionsCell = isOrderedTab ? '' : `<td onclick="event.stopPropagation()">${actionsCellHtml(r)}</td>`;
-    return `<tr onclick="openReorderProductModal(${r.id})">
-      <td class="rank sticky-col">${i + 1}</td>
-      <td class="identity-col sticky-col">
-        <div class="prod-cell">
-          <img class="prod-thumb" src="${imgUrl(r.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
-          <div>
-            <div class="prod-name">${r.name}</div>
-            <div class="prod-id">ID ${r.id}${r.dostawca ? ' · ' + r.dostawca : ''}</div>
-          </div>
-        </div>
-      </td>
-      <td class="num${belowMin ? ' reorder-below-min' : ''}">${r.stan}</td>
-      <td class="num">${r.sales7d.toLocaleString('pl-PL')}</td>
-      <td class="num">${fmtPLN(r.cenaZakupu)}</td>
-      <td class="num">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
-      <td class="num">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>
-      <td class="num">${r.alerty > 0 ? `<span class="reorder-alert-badge">${r.alerty}</span>` : '—'}</td>
-      <td id="reorderStatusCell_${r.id}">${statusCellHtml(r)}</td>
-      ${orderedCells}
-      ${actionsCell}
-    </tr>`;
-  }).join('');
+  tbody.innerHTML = '';
+  appendNextPage();
+}
 
-  enrichOrderedStatuses(rows);
+/* Dokłada kolejną porcję (PAGE_SIZE) wierszy do już wyrenderowanej tabeli —
+   wołane zarówno przy pierwszym renderze (z pustym tbody), jak i przez
+   IntersectionObserver na sentinelu pod tabelą (patrz setupLoadMoreObserver). */
+function appendNextPage(){
+  if(renderedCount >= filteredSortedRows.length) return;
+  const info = document.getElementById('reorderTableInfo');
+  const tbody = document.getElementById('reorderTableBody');
+  const isOrderedTab = currentFilter === 'ordered';
+
+  const chunk = filteredSortedRows.slice(renderedCount, renderedCount + PAGE_SIZE);
+  const startIndex = renderedCount;
+  tbody.insertAdjacentHTML('beforeend', chunk.map((r, i) => rowHtml(r, startIndex + i, isOrderedTab)).join(''));
+  renderedCount += chunk.length;
+
+  const pageInfo = renderedCount < filteredSortedRows.length ? ` (pokazano ${renderedCount})` : '';
+  info.textContent = `${filteredSortedRows.length} produktów${pageInfo} · sortowanie: ${sortLabel(sortState.key)} ${sortState.dir === 'asc' ? 'rosnąco' : 'malejąco'}`;
+
+  enrichOrderedStatuses(chunk);
+}
+
+/* Sentinel pod tabelą (index.html) — jak tylko wjedzie w pole widzenia
+   (z 400px zapasu, żeby doładować zanim user faktycznie dojedzie do końca),
+   dokładamy kolejną stronę. Sentinel jest statyczny w DOM (poza tbody), więc
+   obserwator ustawiamy raz, nie trzeba go odtwarzać przy każdym renderze. */
+function setupLoadMoreObserver(){
+  if(loadMoreObserver) return;
+  const sentinel = document.getElementById('reorderLoadMoreSentinel');
+  if(!sentinel) return;
+  loadMoreObserver = new IntersectionObserver(entries => {
+    if(entries[0].isIntersecting) appendNextPage();
+  }, { rootMargin: '400px' });
+  loadMoreObserver.observe(sentinel);
 }
 
 /* Status wyłącznie z koszyka (core/reorderCart.js) — jedyne dziś śledzone

@@ -542,6 +542,10 @@
         <tbody id="reorderTableBody"></tbody>
       </table>
     </div>
+    <!-- Niewidoczny znacznik dla IntersectionObserver — patrz
+         components/reorder/reorder.js: setupLoadMoreObserver. Jak wjedzie
+         w pole widzenia, dokłada kolejną stronę wierszy. -->
+    <div id="reorderLoadMoreSentinel"></div>
   </div>
 
   <!-- SCREEN: STANY MAGAZYNOWE -->
