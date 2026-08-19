@@ -144,6 +144,11 @@
   <div class="screen" id="screen-table">
     <div class="table-search-row">
       <input type="text" class="table-search" id="tableSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applySalesSearch(this.value)">
+      <div class="ms-filter" id="nkCollectionFilterWrap">
+        <button type="button" class="ms-filter-btn" onclick="toggleNkCollectionPanel()">Kolekcja NK ▾</button>
+        <div class="ms-filter-panel" id="nkCollectionFilterPanel"></div>
+      </div>
+      <button type="button" class="ms-filter-btn" id="saleFilterBtn" onclick="toggleSaleOnly()">SALE</button>
     </div>
     <div class="table-meta">
       <p id="tableInfo"></p>
@@ -157,6 +162,9 @@
         <tbody id="tableBody"></tbody>
       </table>
     </div>
+    <!-- Sentinel dla IntersectionObserver — patrz components/sales/sales.js:
+         setupSalesLoadMoreObserver. Ten sam wzorzec co w Zaopatrzeniu. -->
+    <div id="salesLoadMoreSentinel"></div>
   </div>
 
   <!-- SCREEN 4: KLIENCI — WYBÓR OKRESU (lata + ruchome okna dni) -->

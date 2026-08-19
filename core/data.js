@@ -33,6 +33,24 @@ const DELIVERY_OPIS_VALUE = 'Dostawa';
 
 export let products = [];
 
+/* Kolumna "Kategorie" w arkuszu zdjęć to swobodny tekst (tagi rozdzielone
+   przecinkami) — wyłuskujemy z niej dwie rzeczy: daty wyjścia kolekcji NK
+   (tokeny w formacie DD.MM, bez roku) i flagę wyprzedaży (token zawierający
+   "sale", bez uwzględniania wielkości liter, np. "Summer Sale"). Reszta tagów
+   (nazwy kategorii sklepowych, "Cyber", "Focus"...) nigdzie dziś nie jest
+   wykorzystywana.
+
+   UWAGA: produkt może mieć WIĘCEJ NIŻ JEDNĄ datę NK naraz (np. "przeniesiony"
+   z wcześniejszej kolekcji do kolejnej — potwierdzone na żywych danych, np.
+   "..., 04.08, 18.08"). Branie tylko pierwszej daty gubiło takie produkty
+   z filtra nowszej kolekcji, więc zbieramy WSZYSTKIE. */
+function parseCategories(raw){
+  const tokens = (raw || '').split(',').map(t => t.trim()).filter(Boolean);
+  const nkDates = tokens.filter(t => /^\d{1,2}\.\d{1,2}$/.test(t));
+  const isSale = tokens.some(t => t.toLowerCase().includes('sale'));
+  return { nkDates, isSale };
+}
+
 async function fetchLastUpdated(){
   try{
     return (await authedFetch(LAST_UPDATED_URL)).trim();
@@ -60,9 +78,12 @@ export async function loadData(){
     imgRows.forEach(r=>{
       const id = parseIntSafe(getCell(r,'Id','ID','id'));
       if(!id) return;
+      const { nkDates, isSale } = parseCategories(getCell(r,'Kategorie'));
       dbMap[id] = {
         img: getCell(r,'Zdjęcie','Zdjecie') || null,
         odslony: parseIntSafe(getCell(r,'Odsłony','Odslony')),
+        nkDates,
+        isSale,
       };
     });
 
@@ -126,6 +147,8 @@ export async function loadData(){
           dostawca: getCell(r,'Dostawca') || null,
           img: dbMap[id]?.img || null,
           odslony: dbMap[id]?.odslony || 0,
+          nkDates: dbMap[id]?.nkDates || [],
+          isSale: dbMap[id]?.isSale || false,
           sprzedaneHist: soldHistById[id] || 0,
           zwroconoHist: returnedHistById[id] || 0,
           dostarczonoHist: deliveredHistById[id] || 0,

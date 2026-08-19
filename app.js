@@ -2,7 +2,11 @@ import { initAuth, checkPassword, logout } from './core/auth.js';
 import { loadData } from './core/data.js';
 import { goBack } from './core/router.js';
 import { openModal, closeModal } from './core/modal.js';
-import { openCategory, openView, setSort, applySalesSearch } from './components/sales/sales.js';
+import {
+  openCategory, openView, setSort, applySalesSearch,
+  toggleNkCollectionPanel, toggleNkCollection, selectAllNkCollections, clearNkCollections,
+  toggleSaleOnly,
+} from './components/sales/sales.js';
 import { openCustomersHub, openCustomersYear, openCustomersRolling, openCustomersView, setCustomersSort, openCustomerModal, closeCustomerModal } from './components/customers/customers.js';
 import { openReturnsHub, openReturnsMonths, openReturnsCurrentMonth, openReturnsPeriod, openReturnsProducts, openReturnsProductModal, applyReturnsProductsSearch, openReturnsSuppliers, openReturnsSupplierProducts, applyReturnsSupplierProductsSearch, openReturnsIndicator, openReturnsSettlement } from './components/returns/returns.js';
 import { openAlertsHub, openAlertsPeriod, filterAlertsBySupplier, applyAlertsSearch } from './components/alerts/alerts.js';
@@ -42,6 +46,11 @@ window.openCategory = openCategory;
 window.openView = openView;
 window.setSort = setSort;
 window.applySalesSearch = applySalesSearch;
+window.toggleNkCollectionPanel = toggleNkCollectionPanel;
+window.toggleNkCollection = toggleNkCollection;
+window.selectAllNkCollections = selectAllNkCollections;
+window.clearNkCollections = clearNkCollections;
+window.toggleSaleOnly = toggleSaleOnly;
 window.openCustomersHub = openCustomersHub;
 window.openCustomersYear = openCustomersYear;
 window.openCustomersRolling = openCustomersRolling;

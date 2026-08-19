@@ -193,10 +193,15 @@ function highlightPill(key){
   });
 }
 
-export function applySalesBalancePromoOverride(dateKey, value){
-  const num = Number(value) || 0;
-  setPromoDayBudget(dateKey, num);
-  render();
+/* Zapis WYŁĄCZNIE na kliknięcie "Zapisz" (albo Enter) — NIE na każdy klawisz
+   (oninput). Wcześniej oninput odpalał pełny render() przy każdej cyfrze, co
+   przebudowywało całe pole (w tym to, w którym akurat się pisze) i zabierało
+   mu fokus — trzeba było klikać z powrotem po każdej cyfrze. */
+export async function applySalesBalancePromoOverride(dateKey){
+  const input = document.getElementById('sbPromoInput_' + dateKey);
+  const num = Number(input.value) || 0;
+  await setPromoDayBudget(dateKey, num);
+  render({ keepPromoEditor: true });
 }
 
 /* Kliknięcie kafelka dnia w kalendarzu — pokazuje bilans TEGO jednego dnia,
@@ -226,7 +231,15 @@ window.addEventListener('popstate', () => {
 
 /* --------------------------------------------------------------------- */
 
-async function render(){
+/* keepPromoEditor:true — używane po zapisie POJEDYNCZEGO dnia promo
+   (applySalesBalancePromoOverride/savePromoBudgetDefault). Pełny render()
+   przebudowywał CAŁY panel promo od zera, więc jeśli ktoś miał już wpisane
+   (ale jeszcze niezapisane) kwoty w innych, sąsiednich polach, zapis JEDNEGO
+   pola kasował je z powrotem do wartości domyślnej. Z tą flagą zostawiamy
+   DOM panelu promo w spokoju — reszta (statystyki, kalendarz, wykres) i tak
+   przelicza się na nowo, bo te akurat NIE trzymają niezapisanego stanu. */
+async function render(options = {}){
+  const keepPromoEditor = options.keepPromoEditor || false;
   syncReturnsModeToggle();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
@@ -241,7 +254,7 @@ async function render(){
   info.textContent = `${fmtDatePl(currentPeriod.start)} – ${fmtDatePl(currentPeriod.end)}`;
   error.textContent = '';
   marketingInfo.textContent = 'Ładowanie…';
-  promoEditor.innerHTML = '';
+  if(!keepPromoEditor) promoEditor.innerHTML = '';
   otherCostsField.innerHTML = '';
   calendar.innerHTML = currentPeriod.type === 'month' ? '<p class="chart-loading">Ładowanie kalendarza…</p>' : '';
   [
@@ -279,7 +292,7 @@ async function render(){
 
     if(currentPeriod.type === 'month'){
       const budget = await getMarketingBudgetForMonth(currentPeriod.year, currentPeriod.monthIndex);
-      renderPromoEditor(budget);
+      if(!keepPromoEditor) renderPromoEditor(budget);
       renderCalendar(currentPeriod.year, currentPeriod.monthIndex, stats.series, new Set(budget.promoDates));
       await renderOtherCostsField(currentPeriod.year, currentPeriod.monthIndex);
     } else {
@@ -295,12 +308,16 @@ async function render(){
   }
 }
 
+/* Pola tekstowe (nie type="number") — bez strzałek góra/dół, i tak, żeby
+   dało się wpisać kilka cyfr ciągiem: zapis dopiero na "Zapisz"/Enter, nie
+   na każdy znak (patrz applySalesBalancePromoOverride/savePromoBudgetDefault). */
 function renderPromoEditor(budget){
   const el = document.getElementById('sbPromoEditor');
   const defaultRow = `
     <div class="sb-promo-default-row">
       <label for="sbPromoBudgetDefault">Domyślna kwota (dla dat promo bez własnego ustawienia)</label>
-      <input type="number" class="finance-date-input" id="sbPromoBudgetDefault" step="100" value="${getPromoBudgetDefault()}">
+      <input type="text" inputmode="numeric" class="finance-date-input" id="sbPromoBudgetDefault" value="${getPromoBudgetDefault()}"
+        onkeydown="if(event.key==='Enter') savePromoBudgetDefault()">
       <button class="sim-save-default" onclick="savePromoBudgetDefault()">Zapisz jako domyślne</button>
     </div>
   `;
@@ -316,18 +333,19 @@ function renderPromoEditor(budget){
         const d = new Date(dateKey);
         return `<div class="sb-promo-row">
           <span>${fmtDatePl(d)}</span>
-          <input type="number" class="finance-date-input sb-promo-input" value="${amount}" step="100"
-            oninput="applySalesBalancePromoOverride('${dateKey}', this.value)">
+          <input type="text" inputmode="numeric" class="finance-date-input sb-promo-input" id="sbPromoInput_${dateKey}" value="${amount}"
+            onkeydown="if(event.key==='Enter') applySalesBalancePromoOverride('${dateKey}')">
+          <button class="sim-save-default" onclick="applySalesBalancePromoOverride('${dateKey}')">Zapisz</button>
         </div>`;
       }).join('')}
     </div>
   `;
 }
 
-export function savePromoBudgetDefault(){
+export async function savePromoBudgetDefault(){
   const value = Number(document.getElementById('sbPromoBudgetDefault').value) || 0;
-  setPromoBudgetDefault(value);
-  render();
+  await setPromoBudgetDefault(value);
+  render({ keepPromoEditor: true });
 }
 
 /* "Pozostałe koszty" (kafelek Marketing/MER/wynik) — pole edytowalne "z łapy",

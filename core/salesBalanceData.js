@@ -1,12 +1,13 @@
 import { parseNum, parseIntSafe, parseDate } from './format.js';
-import { fetchCsvRaw, fetchCsvRawAll, col } from './csv.js';
-import { DATA_BASE } from './config.js';
+import { fetchCsvRaw, fetchCsvRawAll, col, authedFetchJson } from './csv.js';
+import { DATA_BASE, WORKER_BASE } from './config.js';
 import { getNumPref, setNumPref } from './prefs.js';
 
 const CSV_ORDERS = DATA_BASE + 'ordery.csv';
 const CSV_RETURNS = DATA_BASE + 'zwroty.csv';
 const CSV_MARKETING = DATA_BASE + 'marketing.csv';
 const CSV_PROMOTIONS = DATA_BASE + 'promocje.csv';
+const CSV_ORDER_CUSTOMERS = DATA_BASE + 'zamowienia_klienci.csv'; // arkusz "Dane zamówień"
 
 /* Ordery: C cena jednostkowa (BRUTTO, VAT 23% — potwierdzone), D data sprzedaży,
    F ilość, I koszt zakupu (per linia — realny COGS). Marża NIE jest już brana
@@ -19,6 +20,36 @@ const ORD = { price: col('C'), saleDate: col('D'), qty: col('F'), cogs: col('I')
 const RET = { productId: col('E'), price: col('G'), qty: col('H'), purchaseDate: col('T'), restockValue: col('U'), refundDate: col('R') };
 // Promocje (jak w cashflowData.js): A data, G info o promocji/NK.
 const PROMO = { date: col('A'), info: col('G') };
+// Dane zamówień: H kwota zamówienia BEZ kosztu przesyłki, J wybrana forma
+// dostawy (tekst), T data zamówienia — potwierdzone przez właściciela.
+const ORDER_CUST = { total: col('H'), delivery: col('J'), orderDate: col('T') };
+
+/* Cennik dostaw wg formy (arkusz "Arkusz5"/"WYNIK FINANSOWY", tabela A2:C9,
+   potwierdzone przez właściciela). freeFrom=null oznacza "zawsze płatne, bez
+   progu darmowej dostawy" (wysyłka międzynarodowa) — w przeciwieństwie do
+   metod krajowych, gdzie 350 zł (wartość zamówienia BEZ przesyłki, kolumna H)
+   zwalnia klienta z opłaty. Trzymane jako stała — jeśli ceny się zmienią,
+   trzeba poprawić tutaj (ten sam wzorzec co VAT_RATE/PROMO_BUDGET_DEFAULT_FALLBACK). */
+const SHIPPING_METHODS = new Map([
+  ['Kurier DPD',                        { price: 18, freeFrom: 350 }],
+  ['DPD Pickup',                        { price: 13, freeFrom: 350 }],
+  ['DPD Pickup - Automaty DPD Station', { price: 13, freeFrom: 350 }],
+  ['Paczkomaty InPost',                 { price: 19, freeFrom: 350 }],
+  ['Kurier INPOST',                     { price: 21, freeFrom: 350 }],
+  ['DPD wysyłka międzynarodowa',        { price: 69, freeFrom: null }],
+  ['Odbiór osobisty',                   { price: 0,  freeFrom: null }],
+  ['Dostawa elektroniczna',             { price: 0,  freeFrom: null }],
+]);
+
+/* Opłata pobrana od klienta za TĘ konkretną dostawę — 0, jeśli metoda jest
+   z definicji darmowa (odbiór osobisty, elektroniczna), albo jeśli wartość
+   zamówienia (bez przesyłki) osiągnęła próg darmowej dostawy danej metody. */
+function shippingFeeForOrder(deliveryName, orderTotal){
+  const method = SHIPPING_METHODS.get((deliveryName || '').trim());
+  if(!method || method.price === 0) return 0;
+  if(method.freeFrom !== null && orderTotal >= method.freeFrom) return 0;
+  return method.price;
+}
 
 /* Dwa sposoby przypisania zwrotu do miesiąca — użytkownik przełącza je w UI:
    - 'purchaseMonth': zwrot obciąża miesiąc ZAKUPU (kolumna T) — tak samo jak
@@ -36,19 +67,52 @@ export const RETURNS_MODE_REFUND = 'refundMonth';
 
 export const VAT_RATE = 1.23;
 
-/* Budżet marketingu dnia promocyjnego — zapamiętany TRWALE (core/prefs.js),
-   OSOBNO DLA KAŻDEJ DATY (nie jeden wspólny, zbiorczy dla całego miesiąca).
-   Jest jednak też edytowalna "domyślna kwota" — używana wyłącznie jako
-   wypełnienie dla dat, których NIKT jeszcze ręcznie nie ustawił; jeśli dana
-   data ma już własną zapisaną wartość, ta wygrywa i domyślna kwota jej nie
-   nadpisuje (patrz getPromoDayBudget). */
-const PROMO_BUDGET_DEFAULT_FALLBACK = 4000;
-export function getPromoBudgetDefault(){ return getNumPref('sb.promoBudgetDefault', PROMO_BUDGET_DEFAULT_FALLBACK); }
-export function setPromoBudgetDefault(value){ setNumPref('sb.promoBudgetDefault', value); }
+/* Budżet marketingu dnia promocyjnego — WSPÓLNY dla wszystkich kont (D1 przez
+   Worker, patrz worker/src/index.js: /promo-budgets), nie localStorage per
+   przeglądarka jak wcześniej. OSOBNO DLA KAŻDEJ DATY (nie jeden wspólny,
+   zbiorczy dla całego miesiąca). Jest jednak też edytowalna "domyślna kwota"
+   — używana wyłącznie jako wypełnienie dla dat, których NIKT jeszcze ręcznie
+   nie ustawił; jeśli dana data ma już własną zapisaną wartość, ta wygrywa i
+   domyślna kwota jej nie nadpisuje (patrz getPromoDayBudget).
 
-function promoBudgetPrefKey(dateKey){ return 'sb.promoBudget.' + dateKey; }
-export function getPromoDayBudget(dateKey){ return getNumPref(promoBudgetPrefKey(dateKey), getPromoBudgetDefault()); }
-export function setPromoDayBudget(dateKey, value){ setNumPref(promoBudgetPrefKey(dateKey), value); }
+   Wzorzec identyczny jak core/reorderCart.js: lokalny cache stanu (żeby
+   odczyty zostały synchroniczne — reszta apki i tak działa w oparciu o
+   ponowny render() po zapisie, nie o wartość zwróconą z akcji), doładowywany
+   przy każdym 'ferro:data-loaded', zapisy async przez Worker. */
+const PROMO_BUDGETS_URL = `${WORKER_BASE}/promo-budgets`;
+const PROMO_BUDGET_DEFAULT_KEY = 'default';
+const PROMO_BUDGET_DEFAULT_FALLBACK = 4000;
+
+let promoBudgetsState = {};
+
+export async function loadPromoBudgets(){
+  try{ promoBudgetsState = await authedFetchJson(PROMO_BUDGETS_URL) || {}; }
+  catch(e){ /* błąd sieci nie blokuje UI — poprzedni stan (albo pusty na starcie) zostaje */ }
+}
+
+export function getPromoBudgetDefault(){
+  return promoBudgetsState[PROMO_BUDGET_DEFAULT_KEY] ?? PROMO_BUDGET_DEFAULT_FALLBACK;
+}
+export async function setPromoBudgetDefault(value){
+  await setPromoBudgetRaw(PROMO_BUDGET_DEFAULT_KEY, value);
+}
+
+export function getPromoDayBudget(dateKey){
+  return promoBudgetsState[dateKey] ?? getPromoBudgetDefault();
+}
+export async function setPromoDayBudget(dateKey, value){
+  await setPromoBudgetRaw(dateKey, value);
+}
+
+async function setPromoBudgetRaw(dateKey, amount){
+  try{
+    promoBudgetsState = await authedFetchJson(`${PROMO_BUDGETS_URL}/set`, {
+      method: 'POST', body: JSON.stringify({ dateKey, amount }),
+    }) || promoBudgetsState;
+  } catch(e){ /* jw. */ }
+}
+
+document.addEventListener('ferro:data-loaded', loadPromoBudgets);
 
 const MONTHS_PL = ['STYCZEŃ','LUTY','MARZEC','KWIECIEŃ','MAJ','CZERWIEC','LIPIEC','SIERPIEŃ','WRZESIEŃ','PAŹDZIERNIK','LISTOPAD','GRUDZIEŃ'];
 
@@ -64,6 +128,7 @@ const loadOrdersRaw = () => cached('orders', () => fetchCsvRaw(CSV_ORDERS));
 const loadReturnsRaw = () => cached('returns', () => fetchCsvRaw(CSV_RETURNS));
 const loadMarketingRaw = () => cached('marketing', () => fetchCsvRawAll(CSV_MARKETING));
 const loadPromotionsRaw = () => cached('promo', () => fetchCsvRaw(CSV_PROMOTIONS));
+const loadOrderCustomersRaw = () => cached('orderCustomers', () => fetchCsvRaw(CSV_ORDER_CUSTOMERS));
 
 /* Dzień "promocyjny" = ten sam warunek co w cashflowData.js (% zniżki albo NK
    wpisane w arkuszu Promocje), tu potrzebujemy tylko samego faktu, nie wielkości. */
@@ -184,28 +249,26 @@ async function computeOtherCostsDailyRates(start, end){
   return rates;
 }
 
-/* "Dostawy opłacone przez klientów brutto" — TERAZ z arkusza V2 (wiersz 3),
-   a NIE z heurystyki (płaska stawka 20 zł za zamówienie <350 zł). Wiersz 3
-   zawiera już gotową, wyliczoną w Arkuszach kwotę per miesiąc (VLOOKUP każdego
-   zamówienia <350 zł wg formy dostawy w tabeli Arkusz5, więc realną, różną dla
-   każdej formy dostawy — potwierdzone przez właściciela). Ta sama kolumna
-   miesiąca co budżet marketingu (getMarketingSheetColumn). */
-async function getShippingMonthlyTotal(year, monthIndex){
-  const { rows, colIdx } = await getMarketingSheetColumn(year, monthIndex);
-  return parseNum((rows[2] || [])[colIdx]);
-}
-
+/* "Dostawy opłacone przez klientów brutto" — liczone WPROST z pojedynczych
+   zamówień (arkusz "Dane zamówień", zamowienia_klienci.csv), zamiast z
+   gotowej sumy miesięcznej rozjechanej równo na wszystkie dni. Dla każdego
+   zamówienia w oknie [start, end]: sprawdzamy formę dostawy (kolumna J) i
+   wartość zamówienia bez przesyłki (kolumna H) w cenniku SHIPPING_METHODS,
+   i doliczamy opłatę do PRAWDZIWEJ daty zamówienia (kolumna T) — więc dzień
+   z większą liczbą płatnych dostaw faktycznie pokazuje wyższą kwotę, a nie
+   uśrednioną. Ta sama logika co formuła w arkuszu WYNIK FINANSOWY, tylko
+   per dzień zamiast per miesiąc. */
 async function computeShippingDailyRates(start, end){
+  const rows = await loadOrderCustomersRaw();
   const rates = new Map();
-  const perMonth = new Map();
-  for(const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)){
-    const monthKey = d.getFullYear() + '-' + d.getMonth();
-    if(!perMonth.has(monthKey)){
-      const monthlyTotal = await getShippingMonthlyTotal(d.getFullYear(), d.getMonth());
-      perMonth.set(monthKey, monthlyTotal / daysInMonth(d.getFullYear(), d.getMonth()));
-    }
-    rates.set(isoDateKey(d), perMonth.get(monthKey));
-  }
+  rows.forEach(row => {
+    const date = parseDate(row[ORDER_CUST.orderDate]);
+    if(!date || date < start || date > end) return;
+    const fee = shippingFeeForOrder(row[ORDER_CUST.delivery], parseNum(row[ORDER_CUST.total]));
+    if(fee <= 0) return;
+    const key = isoDateKey(date);
+    rates.set(key, (rates.get(key) || 0) + fee);
+  });
   return rates;
 }
 

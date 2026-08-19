@@ -24,6 +24,10 @@
   border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;white-space:nowrap;
 }
 .ms-filter-btn:hover{border-color:var(--gold);}
+/* Stan aktywny dla przycisków-przełączników obok filtrów wielokrotnego
+   wyboru (np. SALE w module Sprzedaż) — ten sam "chrome" co reszta
+   .ms-filter-btn, tylko wypełniony, żeby było widać że filtr jest włączony. */
+.ms-filter-btn.active{background:var(--gold);border-color:var(--gold);color:#3a2e00;font-weight:600;}
 .ms-filter-panel{
   display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:20;min-width:220px;max-height:280px;
   overflow-y:auto;background:#fff;border:1px solid #DCD3C0;border-radius:8px;padding:8px;
