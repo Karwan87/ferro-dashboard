@@ -39,6 +39,15 @@ body{
 }
 .refresh-btn:hover{border-color:var(--gold);color:var(--gold);}
 .last-updated{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-muted);}
+
+@media(max-width:560px){
+  /* .status-bar sam w sobie nie zawijał się (tylko .topbar to robił) — na
+     wąskich ekranach "Dane aktualne na:" wystawało poza prawą krawędź.
+     flex-wrap + pełna szerokość zrzuca ten element na osobny wiersz pod
+     resztą (flaga/login/przyciski), zamiast wypychać go poza ekran. */
+  .status-bar{flex-wrap:wrap;}
+  #lastUpdated{width:100%;}
+}
 .error-box{
   background:#3A211C;border:1px solid var(--rust);color:#F2C9BE;border-radius:8px;
   padding:16px 18px;margin-bottom:20px;font-size:13.5px;line-height:1.5;

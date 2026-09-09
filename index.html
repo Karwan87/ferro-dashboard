@@ -525,7 +525,7 @@
     </div>
 
     <div class="table-search-row">
-      <input type="text" class="table-search" id="reorderSearch" placeholder="Szukaj po ID lub nazwie produktu…" oninput="applyReorderSearch(this.value)">
+      <input type="text" class="table-search" id="reorderSearch" placeholder="Szukaj po ID, nazwie lub kodzie (np. „midi D07”)…" oninput="applyReorderSearch(this.value)">
       <div class="ms-filter" id="reorderSupplierFilterWrap">
         <button type="button" class="ms-filter-btn" onclick="toggleReorderSupplierPanel()">Wszyscy dostawcy ▾</button>
         <div class="ms-filter-panel" id="reorderSupplierFilterPanel"></div>
@@ -1040,13 +1040,18 @@
           <button type="button" class="ms-filter-btn" onclick="toggleCartSupplierPanel()">Wszyscy dostawcy ▾</button>
           <div class="ms-filter-panel" id="cartSupplierFilterPanel"></div>
         </div>
+        <label>Kod</label>
+        <div class="ms-filter" id="cartKodFilterWrap">
+          <button type="button" class="ms-filter-btn" onclick="toggleCartKodPanel()">Wszystkie kody ▾</button>
+          <div class="ms-filter-panel" id="cartKodFilterPanel"></div>
+        </div>
       </div>
 
       <div id="cartListedView">
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th><input type="checkbox" id="cartListedSelectAllVisible" onchange="toggleCartSelectAllVisible('listed', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th>Dostawca</th><th>Ilość</th><th>Wartość</th><th></th>
+              <th><input type="checkbox" id="cartListedSelectAllVisible" onchange="toggleCartSelectAllVisible('listed', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th>Dostawca</th><th>Kod</th><th>Ilość</th><th>Wartość</th><th></th>
             </tr></thead>
             <tbody id="cartListedBody"></tbody>
           </table>
@@ -1064,7 +1069,7 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th><input type="checkbox" id="cartOrderedSelectAllVisible" onchange="toggleCartSelectAllVisible('ordered', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th>Dostawca</th><th>Zamówiono</th><th>Data</th><th>Dostarczono</th><th>Status</th>
+              <th><input type="checkbox" id="cartOrderedSelectAllVisible" onchange="toggleCartSelectAllVisible('ordered', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th>Dostawca</th><th>Kod</th><th>Zamówiono</th><th>Data</th><th>Dostarczono</th><th>Status</th>
             </tr></thead>
             <tbody id="cartOrderedBody"></tbody>
           </table>

@@ -34,6 +34,7 @@ export async function getReorderList(alertDays = 7){
       id: p.id,
       name: p.name,
       img: p.img,
+      kod: p.kod,
       dostawca: p.dostawca,
       stan: p.stan,
       minStock: p.minStock,

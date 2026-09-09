@@ -14,6 +14,8 @@ import { showConfirm } from '../../core/confirmModal.js';
 let currentTab = 'listed';
 let selectedSuppliers = new Set();
 let supplierPanelOpen = false;
+let selectedKods = new Set();
+let kodPanelOpen = false;
 let checkedIds = new Set();
 // Id-y aktualnie WIDOCZNYCH wierszy (po filtrze dostawcy) w każdej zakładce —
 // osobno od checkedIds, żeby "zaznacz widoczne pozycje" dotykało tylko tego,
@@ -37,6 +39,8 @@ export function openOrderCart(){
   currentTab = 'listed';
   selectedSuppliers = new Set();
   supplierPanelOpen = false;
+  selectedKods = new Set();
+  kodPanelOpen = false;
   checkedIds = new Set();
   setCartTabUI('listed');
   document.getElementById('overlayCart').classList.add('active');
@@ -118,6 +122,58 @@ document.addEventListener('click', e => {
   }
 });
 
+/* Filtr po kodzie (ten sam "Kod:" co w treści zamówienia do dostawcy, patrz
+   buildOrderMessages) — ten sam wzorzec wielowyboru co dostawca, AND-uje się
+   z filtrem dostawcy (oba warunki muszą być spełnione naraz). */
+export function toggleCartKodPanel(){
+  kodPanelOpen = !kodPanelOpen;
+  renderCartTabs();
+}
+
+export function toggleCartKod(k){
+  if(selectedKods.has(k)) selectedKods.delete(k); else selectedKods.add(k);
+  renderCartTabs();
+}
+
+export function selectAllCartKod(){
+  selectedKods = new Set(getAllRelevantItems().map(it => it.kod).filter(Boolean));
+  renderCartTabs();
+}
+
+export function clearCartKod(){
+  selectedKods = new Set();
+  renderCartTabs();
+}
+
+function renderKodPanel(items){
+  const panel = document.getElementById('cartKodFilterPanel');
+  const btn = document.querySelector('#cartKodFilterWrap .ms-filter-btn');
+  panel.classList.toggle('open', kodPanelOpen);
+  if(kodPanelOpen){
+    const kods = [...new Set(items.map(it => it.kod).filter(Boolean))].sort();
+    panel.innerHTML = `
+      <div class="ms-filter-actions">
+        <button type="button" onclick="selectAllCartKod()">Zaznacz wszystko</button>
+        <button type="button" onclick="clearCartKod()">Wyczyść</button>
+      </div>
+      ${kods.map(k => `
+        <label class="ms-filter-option">
+          <input type="checkbox" ${selectedKods.has(k) ? 'checked' : ''} onchange="toggleCartKod('${k.replace(/'/g, "\\'")}')">
+          ${k}
+        </label>`).join('') || '<div class="ms-filter-option">Brak danych o kodach</div>'}
+    `;
+  }
+  btn.textContent = (selectedKods.size === 0 ? 'Wszystkie kody' : `Kod (${selectedKods.size})`) + ' ▾';
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('cartKodFilterWrap');
+  if(kodPanelOpen && wrap && !wrap.contains(e.target)){
+    kodPanelOpen = false;
+    renderCartTabs();
+  }
+});
+
 export function toggleCartCheck(id){
   if(checkedIds.has(id)) checkedIds.delete(id); else checkedIds.add(id);
   renderCartTabs();
@@ -160,18 +216,21 @@ async function renderCartTabs(){
   const orderedItems = getOrderedItems().map(it => ({ ...productById(it.id), ...it }));
 
   renderSupplierPanel([...listedItems, ...orderedItems]);
+  renderKodPanel([...listedItems, ...orderedItems]);
 
   document.getElementById('cartTabListedCount').textContent = String(listedItems.length);
   document.getElementById('cartTabOrderedCount').textContent = String(orderedItems.length);
 
-  const bySupplier = it => selectedSuppliers.size === 0 || selectedSuppliers.has(it.dostawca);
-  const listedFiltered = listedItems.filter(bySupplier);
+  const passesFilters = it =>
+    (selectedSuppliers.size === 0 || selectedSuppliers.has(it.dostawca)) &&
+    (selectedKods.size === 0 || selectedKods.has(it.kod));
+  const listedFiltered = listedItems.filter(passesFilters);
   visibleListedIds = listedFiltered.map(it => it.id);
   renderListedTable(listedFiltered);
   syncSelectAllCheckbox('cartListedSelectAllVisible', listedFiltered);
   updateMessagePreview(listedFiltered);
 
-  const orderedFiltered = orderedItems.filter(bySupplier);
+  const orderedFiltered = orderedItems.filter(passesFilters);
   visibleOrderedIds = orderedFiltered.map(it => it.id);
   const progresses = await Promise.all(orderedFiltered.map(it => getDeliveryProgress(it.id)));
   orderedFiltered.forEach((it, i) => lastProgressById.set(it.id, progresses[i]));
@@ -185,7 +244,7 @@ function renderListedTable(items){
   const tbody = document.getElementById('cartListedBody');
   const totalEl = document.getElementById('cartListedTotal');
   if(items.length === 0){
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Koszyk jest pusty.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Koszyk jest pusty.</td></tr>`;
     totalEl.textContent = '';
     return;
   }
@@ -196,6 +255,7 @@ function renderListedTable(items){
       <td><img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'"></td>
       <td><div class="prod-name">${it.name}</div><div class="prod-id">ID ${it.id}</div></td>
       <td>${it.dostawca || '—'}</td>
+      <td>${it.kod || '—'}</td>
       <td class="num">${it.qty} szt.</td>
       <td class="num">${fmtPLN(value)}</td>
       <td><button class="reorder-action-btn-sm" onclick="cartRemoveItem(${it.id})">✕</button></td>
@@ -210,7 +270,7 @@ function renderListedTable(items){
 function renderOrderedTable(items){
   const tbody = document.getElementById('cartOrderedBody');
   if(items.length === 0){
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Brak zamówionych produktów.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Brak zamówionych produktów.</td></tr>`;
     return;
   }
   tbody.innerHTML = items.map(it => {
@@ -222,6 +282,7 @@ function renderOrderedTable(items){
       <td><img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'"></td>
       <td><div class="prod-name">${it.name}</div><div class="prod-id">ID ${it.id}</div></td>
       <td>${it.dostawca || '—'}</td>
+      <td>${it.kod || '—'}</td>
       <td class="num">${it.qty} szt.</td>
       <td>${fmtDatePl(it.orderedAt)}</td>
       <td class="num">${delivered} / ${it.qty}</td>

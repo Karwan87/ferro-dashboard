@@ -32,6 +32,7 @@ import {
   openOrderCart, closeOrderCart, setCartTab, toggleCartCheck, cartRemoveItem,
   sendCartOrder, copyCartMessage, removeSelectedOrdered, updateCartBadge,
   toggleCartSupplierPanel, toggleCartSupplier, selectAllCartSuppliers, clearCartSuppliers,
+  toggleCartKodPanel, toggleCartKod, selectAllCartKod, clearCartKod,
   toggleCartSelectAllVisible,
 } from './components/cart/cart.js';
 import { resolveConfirmModal } from './core/confirmModal.js';
@@ -147,6 +148,10 @@ window.toggleCartSupplierPanel = toggleCartSupplierPanel;
 window.toggleCartSupplier = toggleCartSupplier;
 window.selectAllCartSuppliers = selectAllCartSuppliers;
 window.clearCartSuppliers = clearCartSuppliers;
+window.toggleCartKodPanel = toggleCartKodPanel;
+window.toggleCartKod = toggleCartKod;
+window.selectAllCartKod = selectAllCartKod;
+window.clearCartKod = clearCartKod;
 window.toggleCartSelectAllVisible = toggleCartSelectAllVisible;
 window.resolveConfirmModal = resolveConfirmModal;
 

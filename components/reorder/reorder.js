@@ -3,11 +3,10 @@ import { getReorderList } from '../../core/reorderData.js';
 import { getAlertsForProduct } from '../../core/alertsData.js';
 import { openModal } from '../../core/modal.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
-import { matchesProductQuery } from '../../core/search.js';
 import { addToCart, removeFromCart, getOrderState, getProductCartStatus, getDeliveryProgress } from '../../core/reorderCart.js';
 
 const ALERT_WINDOW_DAYS = 7; // ta sama liczba dni co przy budowie listy (getReorderList(7))
-const COLSPAN = 10;
+const COLSPAN = 11;
 // Baza ma tysiące produktów — renderowanie wszystkich wierszy NARAZ (każdy ze
 // zdjęciem, więc tysiące jednoczesnych żądań do assets.ferroboutique.pl) było
 // głównym źródłem kilkusekundowego zawieszenia przy wejściu w ten ekran.
@@ -253,12 +252,13 @@ function renderTableHead(){
   row.innerHTML = `
     <th class="rank sticky-col"></th>
     <th class="identity-col sticky-col">Produkt</th>
+    <th class="mobile-hide">Kod</th>
     <th data-key="stan" onclick="setReorderSort('stan')">Stan <span class="arrow"></span></th>
     <th data-key="sales7d" onclick="setReorderSort('sales7d')">Sprzedaż 7D <span class="arrow"></span></th>
-    <th data-key="cenaZakupu" onclick="setReorderSort('cenaZakupu')">Cena zakupu <span class="arrow"></span></th>
-    <th data-key="marzaPct" onclick="setReorderSort('marzaPct')">Marża <span class="arrow"></span></th>
-    <th data-key="zwrotyPct" onclick="setReorderSort('zwrotyPct')">% zwrotów <span class="arrow"></span></th>
-    <th data-key="alerty" onclick="setReorderSort('alerty')">Alerty (7 dni) <span class="arrow"></span></th>
+    <th class="mobile-hide" data-key="cenaZakupu" onclick="setReorderSort('cenaZakupu')">Cena zakupu <span class="arrow"></span></th>
+    <th class="mobile-hide" data-key="marzaPct" onclick="setReorderSort('marzaPct')">Marża <span class="arrow"></span></th>
+    <th class="mobile-hide" data-key="zwrotyPct" onclick="setReorderSort('zwrotyPct')">% zwrotów <span class="arrow"></span></th>
+    <th class="mobile-hide" data-key="alerty" onclick="setReorderSort('alerty')">Alerty (7 dni) <span class="arrow"></span></th>
     <th>Status</th>
     ${orderedCols}
     ${actionsCol}
@@ -267,6 +267,26 @@ function renderTableHead(){
 
 function currentColspan(){
   return currentFilter === 'ordered' ? COLSPAN + 1 : COLSPAN;
+}
+
+/* Szukajka dopasowuje KAŻDE wpisane słowo z osobna do ID/nazwy/kodu
+   (koniunkcja, niezależnie od kolejności/pola) — np. "midi D07" znajdzie
+   produkt, którego nazwa zawiera "midi", a kod zawiera "D07". Liczbowe słowo
+   dodatkowo próbuje ścisłego dopasowania ID (tak jak w core/search.js), ale
+   jeśli nie trafi, może się i tak dopasować jako fragment kodu/nazwy —
+   inaczej wyszukanie samego numerycznego kodu nigdy by nic nie znalazło.
+   Świadomie NIE dotyka współdzielonego core/search.js (matchesProductQuery),
+   żeby nie zmieniać zachowania szukajki na innych ekranach. */
+function matchesReorderQuery(query, r){
+  const q = (query || '').trim();
+  if(!q) return true;
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  return words.every(w => {
+    if(/^\d+$/.test(w) && r.id === parseInt(w, 10)) return true;
+    if((r.name || '').toLowerCase().includes(w)) return true;
+    if((r.kod || '').toLowerCase().includes(w)) return true;
+    return false;
+  });
 }
 
 function rowHtml(r, i, isOrderedTab){
@@ -286,13 +306,14 @@ function rowHtml(r, i, isOrderedTab){
           </div>
         </div>
       </td>
+      <td class="mobile-hide">${r.kod || '—'}</td>
       <td class="num${belowMin ? ' reorder-below-min' : ''}">${r.stan}</td>
       <td class="num">${r.sales7d.toLocaleString('pl-PL')}</td>
-      <td class="num">${fmtPLN(r.cenaZakupu)}</td>
-      <td class="num">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
-      <td class="num">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>
-      <td class="num">${r.alerty > 0 ? `<span class="reorder-alert-badge">${r.alerty}</span>` : '—'}</td>
-      <td id="reorderStatusCell_${r.id}">${statusCellHtml(r)}</td>
+      <td class="num mobile-hide">${fmtPLN(r.cenaZakupu)}</td>
+      <td class="num mobile-hide">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num mobile-hide">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num mobile-hide">${r.alerty > 0 ? `<span class="reorder-alert-badge">${r.alerty}</span>` : '—'}</td>
+      <td id="reorderStatusCell_${r.id}" class="reorder-status-td">${statusCellHtml(r)}</td>
       ${orderedCells}
       ${actionsCell}
     </tr>`;
@@ -308,7 +329,7 @@ function renderTable(){
   // zamówiony nie znika — dalej można go domówić). "Zamówione" filtruje do
   // efektywnie zamówionych, patrz isEffectivelyOrdered.
   if(currentFilter === 'ordered') rows = rows.filter(isEffectivelyOrdered);
-  if(currentSearch) rows = rows.filter(r => matchesProductQuery(currentSearch, r.id, r.name));
+  if(currentSearch) rows = rows.filter(r => matchesReorderQuery(currentSearch, r));
   if(selectedSuppliers.size > 0) rows = rows.filter(r => selectedSuppliers.has(r.dostawca));
   if(selectedStatuses.size > 0) rows = rows.filter(r => selectedStatuses.has(rowStatusKey(r)));
   if(stockMin !== null) rows = rows.filter(r => r.stan >= stockMin);
@@ -409,11 +430,14 @@ async function enrichOrderedStatuses(rows){
     const cls = progress.isComplete ? 'reorder-badge-ok' : 'reorder-badge-ordered';
     const dateLabel = fmtDatePl(new Date(progress.orderedAt));
 
+    // Sama odznaka zostaje krótka (nowrap) — postęp/data lecą osobną, mniejszą
+    // linią pod spodem (.reorder-status-detail), zamiast jednego długiego,
+    // nierozdzielnego napisu wypychającego całą tabelę w bok.
     const statusCell = document.getElementById('reorderStatusCell_' + r.id);
     if(statusCell){
       statusCell.innerHTML = isOrderedTab
         ? `<span class="reorder-badge ${cls}">${label}</span>`
-        : `<span class="reorder-badge ${cls}" title="Zamówiono: ${dateLabel}">${label} · ${progress.deliveredQty}/${progress.orderedQty} · ${dateLabel}</span>`;
+        : `<span class="reorder-badge ${cls}">${label}</span><div class="reorder-status-detail" title="Zamówiono: ${dateLabel}">${progress.deliveredQty}/${progress.orderedQty} · ${dateLabel}</div>`;
     }
     if(isOrderedTab){
       const dateCell = document.getElementById('reorderDateCell_' + r.id);

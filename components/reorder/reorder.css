@@ -14,6 +14,16 @@
 .reorder-badge-listed{border-color:var(--gold);color:#8a6d00;}
 .reorder-badge-ordered{border-color:#5B7A9E;color:#5B7A9E;}
 
+/* Kolumna Status w tabeli Zaopatrzenia — zwężona i zawijana, żeby nie
+   wypychała reszty tabeli w bok (zwłaszcza po dodaniu kolumny Kod). Sama
+   odznaka (.reorder-badge) zostaje nowrap, ale postęp/data pod nią mogą się
+   zawinąć na kolejną linię, jeśli nie mieszczą się w jednej. */
+.reorder-status-td{max-width:130px;white-space:normal;}
+.reorder-status-detail{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A8272;
+  margin-top:3px;white-space:normal;
+}
+
 /* Kolumna "Akcje" — przycisk "Zamów" i mała forma z ilością po kliknięciu. */
 .reorder-action-btn{
   font-family:'Inter',sans-serif;font-size:11.5px;font-weight:600;color:var(--ink);
