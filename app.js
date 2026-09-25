@@ -29,8 +29,9 @@ import {
 } from './components/reorder/reorder.js';
 import { toggleModalCartQty, cancelModalCartQty, confirmModalCartQty } from './core/modal.js';
 import {
-  openOrderCart, closeOrderCart, setCartTab, toggleCartCheck, cartRemoveItem,
-  sendCartOrder, copyCartMessage, removeSelectedOrdered, updateCartBadge,
+  openOrderCart, closeOrderCart, setCartTab, toggleCartCheck, cartRemoveItem, cartAdjustQty, cartDecreaseOrdered,
+  sendToPending, cartAdjustPendingQty, cartRemoveFromPending, confirmPendingSelected,
+  sendCartOrder, copyCartMessage, removeSelectedOrdered, cartRemoveOrderedRow, updateCartBadge,
   toggleCartSupplierPanel, toggleCartSupplier, selectAllCartSuppliers, clearCartSuppliers,
   toggleCartKodPanel, toggleCartKod, selectAllCartKod, clearCartKod,
   toggleCartSelectAllVisible,
@@ -141,9 +142,16 @@ window.closeOrderCart = closeOrderCart;
 window.setCartTab = setCartTab;
 window.toggleCartCheck = toggleCartCheck;
 window.cartRemoveItem = cartRemoveItem;
+window.cartAdjustQty = cartAdjustQty;
+window.cartDecreaseOrdered = cartDecreaseOrdered;
+window.sendToPending = sendToPending;
+window.cartAdjustPendingQty = cartAdjustPendingQty;
+window.cartRemoveFromPending = cartRemoveFromPending;
+window.confirmPendingSelected = confirmPendingSelected;
 window.sendCartOrder = sendCartOrder;
 window.copyCartMessage = copyCartMessage;
 window.removeSelectedOrdered = removeSelectedOrdered;
+window.cartRemoveOrderedRow = cartRemoveOrderedRow;
 window.toggleCartSupplierPanel = toggleCartSupplierPanel;
 window.toggleCartSupplier = toggleCartSupplier;
 window.selectAllCartSuppliers = selectAllCartSuppliers;

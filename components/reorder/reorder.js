@@ -29,13 +29,14 @@ let filteredSortedRows = [];
 let renderedCount = 0;
 let loadMoreObserver = null;
 
-/* Stałe 3 kategorie statusu (w przeciwieństwie do dostawców, nie wynikają
+/* Stałe 4 kategorie statusu (w przeciwieństwie do dostawców, nie wynikają
    z danych — pokazujemy je zawsze, niezależnie czy akurat coś w danym
    statusie istnieje). Etykiety 1:1 z tym, co pokazuje statusCellHtml.
    Stara ręczna flaga arkusza "Zamówiono?" wycofana — koszyk jest jedynym
    śledzonym źródłem statusu zamówienia. */
 const STATUS_OPTIONS = [
   { key: 'listed', label: 'Oczekujący' },
+  { key: 'pending', label: 'Do zatwierdzenia' },
   { key: 'ordered', label: 'Zamówiono' },
   { key: 'czeka', label: 'Czeka' },
 ];
@@ -245,6 +246,10 @@ function isEffectivelyOrdered(r){
 /* Nagłówek budowany na nowo przy każdym renderze — w zakładce "Zamówione"
    dochodzą kolumny Data zamówienia/Dostarczono, a znika Akcje (nie ma tu
    czego "zamawiać" — patrz actionsCellHtml). */
+/* Kolejność odsłaniania w miarę poszerzania okna (ustalona z użytkownikiem):
+   1. Alerty, 2. Marża, 3. % zwrotów, 4. Cena zakupu, 5. Kod. Status i Akcje
+   NIGDY nie dostają klasy warstwy — mają być widoczne zawsze, na każdej
+   szerokości (patrz table.css: .col-tier-N). */
 function renderTableHead(){
   const row = document.getElementById('reorderTableHead');
   const orderedCols = currentFilter === 'ordered' ? '<th>Data zamówienia</th><th>Dostarczono</th>' : '';
@@ -252,13 +257,13 @@ function renderTableHead(){
   row.innerHTML = `
     <th class="rank sticky-col"></th>
     <th class="identity-col sticky-col">Produkt</th>
-    <th class="mobile-hide">Kod</th>
+    <th class="col-tier-5">Kod</th>
     <th data-key="stan" onclick="setReorderSort('stan')">Stan <span class="arrow"></span></th>
     <th data-key="sales7d" onclick="setReorderSort('sales7d')">Sprzedaż 7D <span class="arrow"></span></th>
-    <th class="mobile-hide" data-key="cenaZakupu" onclick="setReorderSort('cenaZakupu')">Cena zakupu <span class="arrow"></span></th>
-    <th class="mobile-hide" data-key="marzaPct" onclick="setReorderSort('marzaPct')">Marża <span class="arrow"></span></th>
-    <th class="mobile-hide" data-key="zwrotyPct" onclick="setReorderSort('zwrotyPct')">% zwrotów <span class="arrow"></span></th>
-    <th class="mobile-hide" data-key="alerty" onclick="setReorderSort('alerty')">Alerty (7 dni) <span class="arrow"></span></th>
+    <th class="col-tier-4" data-key="cenaZakupu" onclick="setReorderSort('cenaZakupu')">Cena zakupu <span class="arrow"></span></th>
+    <th class="col-tier-2" data-key="marzaPct" onclick="setReorderSort('marzaPct')">Marża <span class="arrow"></span></th>
+    <th class="col-tier-3" data-key="zwrotyPct" onclick="setReorderSort('zwrotyPct')">% zwrotów <span class="arrow"></span></th>
+    <th class="col-tier-1" data-key="alerty" onclick="setReorderSort('alerty')">Alerty (7 dni) <span class="arrow"></span></th>
     <th>Status</th>
     ${orderedCols}
     ${actionsCol}
@@ -306,13 +311,13 @@ function rowHtml(r, i, isOrderedTab){
           </div>
         </div>
       </td>
-      <td class="mobile-hide">${r.kod || '—'}</td>
+      <td class="col-tier-5">${r.kod || '—'}</td>
       <td class="num${belowMin ? ' reorder-below-min' : ''}">${r.stan}</td>
       <td class="num">${r.sales7d.toLocaleString('pl-PL')}</td>
-      <td class="num mobile-hide">${fmtPLN(r.cenaZakupu)}</td>
-      <td class="num mobile-hide">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
-      <td class="num mobile-hide">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>
-      <td class="num mobile-hide">${r.alerty > 0 ? `<span class="reorder-alert-badge">${r.alerty}</span>` : '—'}</td>
+      <td class="num col-tier-4">${fmtPLN(r.cenaZakupu)}</td>
+      <td class="num col-tier-2">${r.marzaPct !== null ? r.marzaPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num col-tier-3">${r.zwrotyPct !== null ? r.zwrotyPct.toFixed(0) + '%' : '—'}</td>
+      <td class="num col-tier-1">${r.alerty > 0 ? `<span class="reorder-alert-badge">${r.alerty}</span>` : '—'}</td>
       <td id="reorderStatusCell_${r.id}" class="reorder-status-td">${statusCellHtml(r)}</td>
       ${orderedCells}
       ${actionsCell}
@@ -404,6 +409,7 @@ function setupLoadMoreObserver(){
 function rowStatusKey(r){
   const status = getProductCartStatus(r.id);
   if(status === 'listed') return 'listed';
+  if(status === 'pending') return 'pending';
   if(status === 'ordered') return 'ordered';
   return 'czeka';
 }
@@ -411,6 +417,7 @@ function rowStatusKey(r){
 function statusCellHtml(r){
   const key = rowStatusKey(r);
   if(key === 'listed') return '<span class="reorder-badge reorder-badge-listed">oczekujący</span>';
+  if(key === 'pending') return '<span class="reorder-badge reorder-badge-pending">do zatwierdzenia</span>';
   if(key === 'ordered') return '<span class="reorder-badge reorder-badge-ordered">zamówiono…</span>';
   return '<span class="reorder-badge">czeka</span>';
 }
@@ -460,6 +467,12 @@ function actionsCellHtml(r){
   if(status === 'listed'){
     return `<span class="reorder-badge reorder-badge-listed">w koszyku: ${getOrderState(r.id).listedQty}</span>
       <button class="reorder-action-btn-sm" onclick="cartRemoveFromRow(${r.id})">✕</button>`;
+  }
+  // "pending" (zgłoszone do zatwierdzenia) — usunięcie z tego etapu żyje w
+  // zakładce "Do zatwierdzenia" koszyka (patrz components/cart/cart.js), nie
+  // tutaj, więc sama odznaka bez przycisku.
+  if(status === 'pending'){
+    return `<span class="reorder-badge reorder-badge-pending">do zatwierdzenia: ${getOrderState(r.id).pendingQty}</span>`;
   }
   // "ordered" NIE blokuje dalszego zamawiania — czasem trzeba domówić jeszcze,
   // zanim pierwsza tura w ogóle dojdzie (patrz core/reorderCart.js: kolejne

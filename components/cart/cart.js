@@ -1,16 +1,19 @@
 import { products } from '../../core/data.js';
 import { pushModalState, requestModalClose } from '../../core/router.js';
 import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
+import { openModal } from '../../core/modal.js';
 import {
   getCartItems, getCartCount, removeFromCart, markOrdered,
-  getOrderedItems, removeOrderRecords, getDeliveryProgress,
+  getOrderedItems, removeOrderRecords, getDeliveryProgress, setCartQty, decreaseOrderedQty,
+  getPendingItems, markPending, setPendingQty, removeFromPending, confirmPending,
 } from '../../core/reorderCart.js';
 import { showConfirm } from '../../core/confirmModal.js';
 
-/* Koszyk zamówień — ETAP 1 (patrz core/reorderCart.js): stan lokalny,
-   niezsynchronizowany między urządzeniami/użytkownikami. Ikona w topbarze
-   (widoczna na każdym ekranie), panel z dwiema zakładkami: "Koszyk" (jeszcze
-   niewysłane do dostawcy) i "Zamówione" (wysłane, z postępem dostawy). */
+/* Koszyk zamówień (stan wspólny w D1, patrz core/reorderCart.js). Ikona w
+   topbarze (widoczna na każdym ekranie), panel z TRZEMA zakładkami: "Koszyk"
+   (ustalanie ilości, jeszcze nie zgłoszone), "Do zatwierdzenia" (zgłoszone
+   przez kogoś, czeka na faktyczne wysłanie do dostawcy — tu żyje też
+   generator treści wiadomości) i "Zamówione" (wysłane, z postępem dostawy). */
 let currentTab = 'listed';
 let selectedSuppliers = new Set();
 let supplierPanelOpen = false;
@@ -19,8 +22,9 @@ let kodPanelOpen = false;
 let checkedIds = new Set();
 // Id-y aktualnie WIDOCZNYCH wierszy (po filtrze dostawcy) w każdej zakładce —
 // osobno od checkedIds, żeby "zaznacz widoczne pozycje" dotykało tylko tego,
-// co naprawdę widać, nie całego koszyka/listy zamówionych w tle innego filtra.
+// co naprawdę widać, nie całej listy w tle innego filtra.
 let visibleListedIds = [];
+let visiblePendingIds = [];
 let visibleOrderedIds = [];
 // Ostatnio policzony postęp dostawy per produkt (patrz renderCartTabs) —
 // removeSelectedOrdered czyta stąd zamiast liczyć drugi raz, żeby wiedzieć,
@@ -62,6 +66,7 @@ export function setCartTab(tab){
 function setCartTabUI(tab){
   document.querySelectorAll('#cartTabs .pill').forEach(btn => btn.classList.toggle('active', btn.dataset.key === tab));
   document.getElementById('cartListedView').style.display = tab === 'listed' ? '' : 'none';
+  document.getElementById('cartPendingView').style.display = tab === 'pending' ? '' : 'none';
   document.getElementById('cartOrderedView').style.display = tab === 'ordered' ? '' : 'none';
 }
 
@@ -69,6 +74,7 @@ function setCartTabUI(tab){
 function getAllRelevantItems(){
   return [
     ...getCartItems().map(it => ({ ...productById(it.id), ...it })),
+    ...getPendingItems().map(it => ({ ...productById(it.id), ...it })),
     ...getOrderedItems().map(it => ({ ...productById(it.id), ...it })),
   ];
 }
@@ -184,7 +190,7 @@ export function toggleCartCheck(id){
    visibleOrderedIds, patrz renderCartTabs), nie na cały koszyk/listę
    zamówionych. Zaznaczenia poza bieżącym filtrem zostają nietknięte. */
 export function toggleCartSelectAllVisible(tab, checked){
-  const ids = tab === 'listed' ? visibleListedIds : visibleOrderedIds;
+  const ids = tab === 'listed' ? visibleListedIds : tab === 'pending' ? visiblePendingIds : visibleOrderedIds;
   ids.forEach(id => { if(checked) checkedIds.add(id); else checkedIds.delete(id); });
   renderCartTabs();
 }
@@ -206,6 +212,63 @@ export function cartRemoveItem(id){
   removeFromCart(id);
 }
 
+/* Licznik +/- w tabeli "Koszyk" — currentQty przychodzi wprost z wiersza
+   (patrz renderListedTable), więc nie trzeba osobno dopytywać o stan.
+   Zjechanie do 0 usuwa pozycję (patrz Worker: /cart/set-qty). */
+export function cartAdjustQty(id, currentQty, delta){
+  const newQty = Math.max(0, currentQty + delta);
+  setCartQty(id, newQty);
+}
+
+/* Zakładka "Zamówione" — TYLKO w dół (korekta pomyłki po wysyłce), stąd brak
+   przycisku "+" w tym widoku (zwiększanie idzie przez koszyk, nie stąd). */
+export function cartDecreaseOrdered(id){
+  decreaseOrderedQty(id);
+}
+
+/* Licznik +/- w tabeli "Do zatwierdzenia" — analogicznie do cartAdjustQty,
+   ale na pendingQty (patrz Worker: /cart/set-pending-qty). */
+export function cartAdjustPendingQty(id, currentQty, delta){
+  const newQty = Math.max(0, currentQty + delta);
+  setPendingQty(id, newQty);
+}
+
+export function cartRemoveFromPending(id){
+  removeFromPending(id);
+}
+
+/* "Zatwierdź ilości" — działa jak PRZEŁĄCZNIK na całym bieżącym zaznaczeniu:
+   jeśli WSZYSTKIE zaznaczone pozycje są już zatwierdzone, cofa zatwierdzenie
+   wszystkich naraz (żeby dało się np. z powrotem zwiększyć ilość — patrz
+   Worker: handleCartSetPendingQty); w każdym innym przypadku (mix, albo same
+   niezatwierdzone) zatwierdza wszystkie. Celowo NIE czyści checkedIds —
+   po zatwierdzeniu ten sam zestaw zaznaczeń zwykle od razu leci dalej przez
+   "Zamów zaznaczone". */
+export function confirmPendingSelected(){
+  const pendingItems = getPendingItems().map(it => ({ ...productById(it.id), ...it }));
+  const items = pendingItems.filter(it => checkedIds.has(it.id));
+  if(items.length === 0){
+    alert('Zaznacz produkty, których ilości chcesz zatwierdzić.');
+    return;
+  }
+  const allConfirmed = items.every(it => it.confirmed);
+  confirmPending(items.map(it => it.id), !allConfirmed);
+}
+
+/* Oba przyciski akcji w "Do zatwierdzenia" wyszarzone, dopóki NIC nie jest
+   zaznaczone — bez sensu pozwalać kliknąć w cokolwiek, gdy nie ma na czym
+   działać. Walidacja "czy zaznaczone są zatwierdzone" dla "Zamów zaznaczone"
+   przeniesiona do sendCartOrder (konkretny komunikat z ID, zamiast po cichu
+   wyszarzonego przycisku bez wyjaśnienia). Liczymy po PEŁNEJ liście (nie
+   tylko widocznej po filtrze), tak samo jak sendCartOrder/confirmPendingSelected. */
+function updateActionButtonsState(pendingItems){
+  const hasChecked = pendingItems.some(it => checkedIds.has(it.id));
+  const confirmBtn = document.getElementById('cartConfirmBtn');
+  const orderBtn = document.getElementById('cartSendOrderBtn');
+  if(confirmBtn) confirmBtn.disabled = !hasChecked;
+  if(orderBtn) orderBtn.disabled = !hasChecked;
+}
+
 async function renderCartTabs(){
   if(!document.getElementById('overlayCart')?.classList.contains('active')){
     updateCartBadge();
@@ -213,12 +276,14 @@ async function renderCartTabs(){
   }
 
   const listedItems = getCartItems().map(it => ({ ...productById(it.id), ...it }));
+  const pendingItems = getPendingItems().map(it => ({ ...productById(it.id), ...it }));
   const orderedItems = getOrderedItems().map(it => ({ ...productById(it.id), ...it }));
 
-  renderSupplierPanel([...listedItems, ...orderedItems]);
-  renderKodPanel([...listedItems, ...orderedItems]);
+  renderSupplierPanel([...listedItems, ...pendingItems, ...orderedItems]);
+  renderKodPanel([...listedItems, ...pendingItems, ...orderedItems]);
 
   document.getElementById('cartTabListedCount').textContent = String(listedItems.length);
+  document.getElementById('cartTabPendingCount').textContent = String(pendingItems.length);
   document.getElementById('cartTabOrderedCount').textContent = String(orderedItems.length);
 
   const passesFilters = it =>
@@ -228,7 +293,13 @@ async function renderCartTabs(){
   visibleListedIds = listedFiltered.map(it => it.id);
   renderListedTable(listedFiltered);
   syncSelectAllCheckbox('cartListedSelectAllVisible', listedFiltered);
-  updateMessagePreview(listedFiltered);
+
+  const pendingFiltered = pendingItems.filter(passesFilters);
+  visiblePendingIds = pendingFiltered.map(it => it.id);
+  renderPendingTable(pendingFiltered);
+  syncSelectAllCheckbox('cartPendingSelectAllVisible', pendingFiltered);
+  updateMessagePreview(pendingFiltered);
+  updateActionButtonsState(pendingItems);
 
   const orderedFiltered = orderedItems.filter(passesFilters);
   visibleOrderedIds = orderedFiltered.map(it => it.id);
@@ -250,15 +321,63 @@ function renderListedTable(items){
   }
   tbody.innerHTML = items.map(it => {
     const value = it.qty * (it.cenaZakupu || 0);
-    return `<tr>
-      <td><input type="checkbox" ${checkedIds.has(it.id) ? 'checked' : ''} onchange="toggleCartCheck(${it.id})"></td>
+    return `<tr onclick="openModal(${it.id})">
+      <td onclick="event.stopPropagation()"><input type="checkbox" ${checkedIds.has(it.id) ? 'checked' : ''} onchange="toggleCartCheck(${it.id})"></td>
       <td><img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'"></td>
       <td><div class="prod-name">${it.name}</div><div class="prod-id">ID ${it.id}</div></td>
-      <td>${it.dostawca || '—'}</td>
-      <td>${it.kod || '—'}</td>
-      <td class="num">${it.qty} szt.</td>
+      <td class="col-tier-1">${it.dostawca || '—'}</td>
+      <td class="col-tier-3">${it.kod || '—'}</td>
+      <td class="num" onclick="event.stopPropagation()">
+        <div class="cart-qty-stepper">
+          <button type="button" onclick="cartAdjustQty(${it.id}, ${it.qty}, -1)" aria-label="Zmniejsz ilość">−</button>
+          <span>${it.qty}</span>
+          <button type="button" onclick="cartAdjustQty(${it.id}, ${it.qty}, 1)" aria-label="Zwiększ ilość">+</button>
+        </div>
+      </td>
       <td class="num">${fmtPLN(value)}</td>
-      <td><button class="reorder-action-btn-sm" onclick="cartRemoveItem(${it.id})">✕</button></td>
+      <td onclick="event.stopPropagation()"><button class="reorder-action-btn-sm" onclick="cartRemoveItem(${it.id})">✕</button></td>
+    </tr>`;
+  }).join('');
+  const total = items.filter(it => checkedIds.has(it.id)).reduce((s, it) => s + it.qty * (it.cenaZakupu || 0), 0);
+  totalEl.textContent = checkedIds.size > 0
+    ? `Wartość zaznaczonych: ${fmtPLN(total)}`
+    : 'Zaznacz produkty do zatwierdzenia.';
+}
+
+function renderPendingTable(items){
+  const tbody = document.getElementById('cartPendingBody');
+  const totalEl = document.getElementById('cartPendingTotal');
+  if(items.length === 0){
+    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Brak produktów do zatwierdzenia.</td></tr>`;
+    totalEl.textContent = '';
+    return;
+  }
+  tbody.innerHTML = items.map(it => {
+    const value = it.qty * (it.cenaZakupu || 0);
+    // Zatwierdzona ilość idzie TYLKO w dół — bez przycisku "+" (ten sam
+    // wzorzec co stepper w "Zamówione"), zamiast wysyłać zwiększenie, które
+    // Worker i tak po cichu zignoruje (patrz handleCartSetPendingQty).
+    const qtyStepper = it.confirmed
+      ? `<div class="cart-qty-stepper">
+          <button type="button" onclick="cartAdjustPendingQty(${it.id}, ${it.qty}, -1)" aria-label="Zmniejsz ilość">−</button>
+          <span>${it.qty}</span>
+        </div>`
+      : `<div class="cart-qty-stepper">
+          <button type="button" onclick="cartAdjustPendingQty(${it.id}, ${it.qty}, -1)" aria-label="Zmniejsz ilość">−</button>
+          <span>${it.qty}</span>
+          <button type="button" onclick="cartAdjustPendingQty(${it.id}, ${it.qty}, 1)" aria-label="Zwiększ ilość">+</button>
+        </div>`;
+    return `<tr onclick="openModal(${it.id})">
+      <td onclick="event.stopPropagation()"><input type="checkbox" ${checkedIds.has(it.id) ? 'checked' : ''} onchange="toggleCartCheck(${it.id})"></td>
+      <td><img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'"></td>
+      <td><div class="prod-name">${it.name}</div><div class="prod-id">ID ${it.id}</div></td>
+      <td class="col-tier-1">${it.dostawca || '—'}</td>
+      <td class="col-tier-3">${it.kod || '—'}</td>
+      <td class="num" onclick="event.stopPropagation()">${qtyStepper}</td>
+      <td class="num">${fmtPLN(value)}</td>
+      <td class="col-tier-2">${it.pendingBy || '—'}</td>
+      <td>${it.confirmed ? '<span class="confirm-icon confirm-icon-yes">✓</span>' : '<span class="confirm-icon confirm-icon-no">✕</span>'}</td>
+      <td onclick="event.stopPropagation()"><button class="reorder-action-btn-sm" onclick="cartRemoveFromPending(${it.id})">✕</button></td>
     </tr>`;
   }).join('');
   const total = items.filter(it => checkedIds.has(it.id)).reduce((s, it) => s + it.qty * (it.cenaZakupu || 0), 0);
@@ -270,23 +389,29 @@ function renderListedTable(items){
 function renderOrderedTable(items){
   const tbody = document.getElementById('cartOrderedBody');
   if(items.length === 0){
-    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Brak zamówionych produktów.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Brak zamówionych produktów.</td></tr>`;
     return;
   }
   tbody.innerHTML = items.map(it => {
     const p = it.progress;
     const delivered = p ? p.deliveredQty : 0;
     const isComplete = p ? p.isComplete : false;
-    return `<tr>
-      <td><input type="checkbox" ${checkedIds.has(it.id) ? 'checked' : ''} onchange="toggleCartCheck(${it.id})"></td>
+    return `<tr onclick="openModal(${it.id})">
+      <td onclick="event.stopPropagation()"><input type="checkbox" ${checkedIds.has(it.id) ? 'checked' : ''} onchange="toggleCartCheck(${it.id})"></td>
       <td><img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'"></td>
       <td><div class="prod-name">${it.name}</div><div class="prod-id">ID ${it.id}</div></td>
-      <td>${it.dostawca || '—'}</td>
-      <td>${it.kod || '—'}</td>
-      <td class="num">${it.qty} szt.</td>
-      <td>${fmtDatePl(it.orderedAt)}</td>
+      <td class="col-tier-1">${it.dostawca || '—'}</td>
+      <td class="col-tier-3">${it.kod || '—'}</td>
+      <td class="num" onclick="event.stopPropagation()">
+        <div class="cart-qty-stepper">
+          <button type="button" onclick="cartDecreaseOrdered(${it.id})" aria-label="Zmniejsz ilość zamówioną">−</button>
+          <span>${it.qty}</span>
+        </div>
+      </td>
+      <td class="col-tier-2">${fmtDatePl(it.orderedAt)}</td>
       <td class="num">${delivered} / ${it.qty}</td>
       <td><span class="reorder-badge ${isComplete ? 'reorder-badge-ok' : 'reorder-badge-ordered'}">${isComplete ? 'dostarczono' : 'zamówiono'}</span></td>
+      <td onclick="event.stopPropagation()"><button class="reorder-action-btn-sm" onclick="cartRemoveOrderedRow(${it.id})">✕</button></td>
     </tr>`;
   }).join('');
 }
@@ -310,23 +435,46 @@ function buildOrderMessages(items){
 }
 
 /* Podgląd na żywo — aktualizuje się przy każdym zaznaczeniu/odznaczeniu
-   checkboxa w zakładce "Koszyk" (patrz toggleCartCheck -> renderCartTabs).
-   Zdjęcie zaznaczenia ze WSZYSTKICH pozycji czyści pole całkowicie. */
-function updateMessagePreview(listedItems){
-  const checkedListed = listedItems.filter(it => checkedIds.has(it.id));
-  document.getElementById('cartMessageOutput').value = checkedListed.length > 0
-    ? buildOrderMessages(checkedListed)
+   checkboxa w zakładce "Do zatwierdzenia" (patrz toggleCartCheck ->
+   renderCartTabs). Zdjęcie zaznaczenia ze WSZYSTKICH pozycji czyści pole
+   całkowicie. */
+function updateMessagePreview(pendingItems){
+  const checkedPending = pendingItems.filter(it => checkedIds.has(it.id));
+  document.getElementById('cartMessageOutput').value = checkedPending.length > 0
+    ? buildOrderMessages(checkedPending)
     : '';
 }
 
-/* Zaznaczone pozycje z koszyka -> status "zamówiono" (z dzisiejszą datą).
-   Treść wiadomości jest już widoczna (podgląd na żywo) — tu tylko
-   zatwierdzamy i przenosimy do zakładki "Zamówione". */
-export function sendCartOrder(){
+/* Zaznaczone pozycje z koszyka -> "Do zatwierdzenia" (nie wysyła jeszcze do
+   dostawcy). pendingBy (kto zgłosił) zapisuje Worker, patrz
+   handleCartMarkPending — tu tylko wybieramy zaznaczone i przenosimy. */
+export function sendToPending(){
   const listedItems = getCartItems().map(it => ({ ...productById(it.id), ...it }));
   const items = listedItems.filter(it => checkedIds.has(it.id));
   if(items.length === 0){
+    alert('Zaznacz produkty, które chcesz zgłosić do zatwierdzenia.');
+    return;
+  }
+  markPending(items.map(it => it.id));
+  checkedIds = new Set();
+}
+
+/* Zaznaczone pozycje z "Do zatwierdzenia" -> status "zamówiono" (z dzisiejszą
+   datą). Treść wiadomości jest już widoczna (podgląd na żywo) — tu tylko
+   zatwierdzamy i przenosimy do zakładki "Zamówione". Przycisk jest klikalny
+   przy KAŻDYM zaznaczeniu (patrz updateActionButtonsState) — jeśli któraś
+   zaznaczona pozycja nie ma jeszcze zatwierdzonej ilości, informujemy o
+   KONKRETNYM ID zamiast po cichu blokować przycisk bez wyjaśnienia. */
+export function sendCartOrder(){
+  const pendingItems = getPendingItems().map(it => ({ ...productById(it.id), ...it }));
+  const items = pendingItems.filter(it => checkedIds.has(it.id));
+  if(items.length === 0){
     alert('Zaznacz produkty, które chcesz zamówić.');
+    return;
+  }
+  const unconfirmed = items.filter(it => !it.confirmed);
+  if(unconfirmed.length > 0){
+    alert(`Najpierw zatwierdź ilości dla: ${unconfirmed.map(it => `ID ${it.id}`).join(', ')}.`);
     return;
   }
   markOrdered(items.map(it => it.id));
@@ -340,17 +488,15 @@ export function copyCartMessage(){
   navigator.clipboard?.writeText(el.value);
 }
 
-/* Ręczne usunięcie z "Zamówione" — dla w pełni dostarczonych pozycji leci
-   od razu (to zwykłe sprzątanie po zrealizowanym zamówieniu, i tak dzieje
-   się to automatycznie następnego dnia). Dla NIEKOMPLETNYCH ostrzegamy
-   modalem: usunięcie zamyka nasłuch dla tej tury na tym, co przyszło do tej
-   pory — nowe zamówienie tego produktu policzy dostawy znów od zera. */
-export async function removeSelectedOrdered(){
-  if(checkedIds.size === 0){
-    alert('Zaznacz produkty do usunięcia z listy.');
-    return;
-  }
-  const ids = [...checkedIds];
+/* Wspólna logika usuwania z "Zamówione" — używana zarówno przez "Usuń
+   zaznaczone z listy" (wiele pozycji naraz) jak i przez pojedynczy przycisk
+   ✕ w wierszu (patrz cartRemoveOrderedRow). Dla w pełni dostarczonych
+   pozycji leci od razu (to zwykłe sprzątanie po zrealizowanym zamówieniu, i
+   tak dzieje się to automatycznie następnego dnia). Dla NIEKOMPLETNYCH
+   ostrzegamy modalem: usunięcie zamyka nasłuch dla tej tury na tym, co
+   przyszło do tej pory — nowe zamówienie tego produktu policzy dostawy
+   znów od zera. */
+async function removeOrderedIds(ids){
   const incompleteNames = ids
     .filter(id => !lastProgressById.get(id)?.isComplete)
     .map(id => productById(id)?.name || `ID ${id}`);
@@ -367,7 +513,22 @@ export async function removeSelectedOrdered(){
   }
 
   removeOrderRecords(ids);
-  checkedIds = new Set();
+  ids.forEach(id => checkedIds.delete(id));
+}
+
+export async function removeSelectedOrdered(){
+  if(checkedIds.size === 0){
+    alert('Zaznacz produkty do usunięcia z listy.');
+    return;
+  }
+  await removeOrderedIds([...checkedIds]);
+}
+
+/* Przycisk ✕ na końcu wiersza "Zamówione" — ten sam efekt co zaznaczenie
+   TEGO JEDNEGO produktu i kliknięcie "Usuń zaznaczone z listy", bez
+   dotykania zaznaczeń pozostałych, niepowiązanych wierszy. */
+export async function cartRemoveOrderedRow(id){
+  await removeOrderedIds([id]);
 }
 
 document.addEventListener('ferro:cart-changed', renderCartTabs);

@@ -6,13 +6,43 @@
   border-radius:8px;text-align:center;
 }
 
-/* Panel koszyka — modal szerszy niż domyślny (produktowy), bo mieści tabelę. */
+/* Panel koszyka — modal szerszy niż domyślny (produktowy), bo mieści tabelę.
+   Baza zostaje 820px (poniżej tej szerokości width:100% i tak już wypełnia
+   dostępne miejsce w .overlay — 80vw byłoby TU węższe niż naturalna
+   szerokość i cofnęłoby modal). Dopiero od 1025px w górę (gdzie 80vw=820px,
+   czyli dokładnie próg bazowego capu — ciągłe przejście, ten sam trik co
+   .app{max-width:90vw} w base.css) 80vw zaczyna dawać WIĘCEJ miejsca niż
+   sztywne 820px, więc modal rośnie razem z ekranem zamiast zostawać wąski
+   pośrodku szerokiego widoku. */
 .cart-modal{max-width:820px;width:100%;}
+@media(min-width:1025px){
+  .cart-modal{max-width:80vw;}
+}
+/* Container query zamiast kolejnych @media — patrz duży komentarz niżej przy
+   ".col-tier-*"/kompaktowym wariancie: relacja szerokość-okna -> szerokość-
+   modala NIE jest liniowa (sztywne 820px, potem 80vw), więc każdy próg oparty
+   o viewport prędzej czy później "urywa się" na nowo przy kolejnej szerokości
+   okna. container-type mierzy REALNĄ szerokość samego .cart-modal, więc raz
+   dobrze skalibrowane progi (niżej) już się nie psują, niezależnie od tego,
+   jak modal rośnie względem okna. */
+.cart-modal{container-type:inline-size;container-name:cart-modal;}
 .cart-modal .modal-body{padding:24px 28px 28px;}
 .cart-summary-row{
   display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
   margin-top:12px;
 }
+/* Grupa przycisków "Zatwierdź ilości" + "Zamów zaznaczone" jako JEDEN blok —
+   bez tego, przy trzech dzieciach flexa (tekst + 2 przyciski),
+   justify-content:space-between rozkłada wolne miejsce MIĘDZY WSZYSTKIE
+   elementy, więc "Zatwierdź ilości" skakał w bok razem ze zmianą długości
+   tekstu "Wartość zaznaczonych: ...". Teraz wolne miejsce idzie tylko
+   między tekst a tę grupę — odstęp między przyciskami zostaje stały. */
+/* margin-top:0 na obu — .cart-action-btn ma domyślnie margin-top:10px (a
+   -primary go zeruje), więc bez tego resetu przyciski w tej samej grupie
+   miały różną wysokość "outer boxa" i align-items:center wyrównywał je
+   NIERÓWNO (widoczne przesunięcie w pionie). */
+.cart-summary-actions{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.cart-summary-actions .cart-action-btn{margin-top:0;}
 .cart-message-output{
   width:100%;min-height:140px;margin-top:6px;padding:12px;
   font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.6;
@@ -30,7 +60,86 @@
 .cart-action-btn:hover{border-color:var(--gold);color:#8a6d00;}
 .cart-action-btn-primary{background:var(--gold);border-color:var(--gold);color:#3a2e00;margin-top:0;}
 .cart-action-btn-primary:hover{background:#b8911f;border-color:#b8911f;color:#3a2e00;}
+/* "Zamów zaznaczone" w "Do zatwierdzenia" — wyszarzone, dopóki nie wszystkie
+   zaznaczone pozycje mają zatwierdzoną (finalną) ilość, patrz cart.js:
+   updateSendOrderButtonState. */
+.cart-action-btn:disabled{
+  opacity:.45;cursor:not-allowed;background:var(--paper-dim);border-color:#8A8272;color:var(--ink);
+}
+.cart-action-btn:disabled:hover{border-color:#8A8272;color:var(--ink);}
+
+/* Kolumna "Zatwierdzone" w tabeli "Do zatwierdzenia" — zielony ptaszek /
+   czerwony krzyżyk, sam status (bez interakcji — zatwierdza się przyciskiem
+   "Zatwierdź ilości" powyżej tabeli). */
+.confirm-icon{font-weight:700;}
+.confirm-icon-yes{color:var(--sage);}
+.confirm-icon-no{color:var(--rust);}
+
+/* Licznik +/- w kolumnie "Ilość" zakładki "Koszyk" — bez tego jedyny sposób
+   zmiany ilości był modal produktu, do którego z tego widoku nie dało się
+   przejść (kliknięcie wiersza nic nie robi). */
+.cart-qty-stepper{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end;}
+.cart-qty-stepper span{min-width:16px;text-align:center;}
+.cart-qty-stepper button{
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--ink);
+  background:var(--paper-dim);border:1px solid #8A8272;border-radius:50%;
+  width:22px;height:22px;line-height:1;cursor:pointer;padding:0;
+}
+.cart-qty-stepper button:hover{border-color:var(--gold);color:#8a6d00;}
 
 @media(max-width:560px){
   .cart-summary-row{flex-direction:column;align-items:stretch;}
+}
+
+/* Modal koszyka ma DUŻO mniej realnego miejsca niż pełny .app przy TEJ SAMEJ
+   szerokości okna (overlay dokłada 20px paddingu z każdej strony, modal-body
+   kolejne ~24-28px) — i, co gorsza, ta relacja NIE jest stała: .cart-modal ma
+   sztywne max-width:820px aż do 1025px viewport, dopiero potem rośnie jako
+   80vw (patrz wyżej). Każdy próg oparty o @media (czyli o szerokość OKNA) w
+   pewnym momencie znowu "urywał" układ dokładnie tam, gdzie akurat
+   ustawiliśmy granicę (560px -> 999px -> 1024px -> ... i tak w nieskończoność
+   przy każdej kolejnej szerokości okna) — bo viewport i szerokość modala
+   rosną w różnym tempie. Container query rozwiązuje to raz a dobrze: mierzy
+   NAPRAWDĘ dostępną szerokość samego .cart-modal (patrz container-type
+   wyżej), więc te same progi, które table.css stosuje do PEŁNEJ szerokości
+   apki, tu odtwarzamy 1:1 — ale liczone od szerokości modala, nie okna. Taki
+   próg już się nie "psuje" przy KOLEJNEJ szerokości okna, bo śledzi realną
+   przestrzeń bezpośrednio, bez pośrednictwa viewportu.
+
+   Reset .col-tier-* na "none" wygrywa z globalnym table.css (który gdzieś w
+   swoim @media ustawia część z nich na table-cell), bo złożony selektor
+   ".cart-modal .col-tier-N" ma WYŻSZĄ specyficzność niż samo ".col-tier-N" —
+   odsłanianie w tym modalu steruje więc już WYŁĄCZNIE poniższymi container
+   queries, viewport nie ma tu nic do powiedzenia. Cart używa tylko tier 1-3
+   (Dostawca/Zgłosił-Data/Kod), więc 4-5 zostają permanentnie ukryte
+   (nieużywane w koszyku). */
+.cart-modal .col-tier-1, .cart-modal .col-tier-2, .cart-modal .col-tier-3, .cart-modal .col-tier-4, .cart-modal .col-tier-5{display:none;}
+@container cart-modal (min-width:700px){ .cart-modal .col-tier-1{display:table-cell;} }
+@container cart-modal (min-width:820px){ .cart-modal .col-tier-2{display:table-cell;} }
+@container cart-modal (min-width:940px){ .cart-modal .col-tier-3{display:table-cell;} }
+
+/* .prod-id celowo nietknięty (osobna reguła w table.css, chowa się dopiero
+   ≤560px viewport) — to pionowa linia pod nazwą, nie zabiera szerokości. */
+@container cart-modal (max-width:999px){
+  .cart-modal td, .cart-modal thead th{padding:8px 5px;}
+  .cart-modal thead th{white-space:normal;font-size:9px;}
+  .cart-modal td.num{font-size:11.5px;}
+  .cart-modal .prod-name{font-size:12px;}
+  .cart-modal .prod-thumb{width:34px;height:34px;}
+}
+@container cart-modal (max-width:430px){
+  .cart-modal table{font-size:10px;}
+  .cart-modal td, .cart-modal thead th{padding:5px 3px;}
+  .cart-modal thead th{font-size:7.5px;letter-spacing:.4px;}
+  .cart-modal td.num{font-size:10px;}
+  .cart-modal .prod-thumb{width:26px;height:26px;border-radius:5px;}
+  .cart-modal .prod-name{font-size:10.5px;line-height:1.2;}
+}
+
+/* Ten sam wąski telefon (~390-430px) co table.css/reorder.css — modal koszyka
+   ma WŁASNY padding na wierzchu marginesu .overlay, więc na iPhone 16 zostaje
+   jeszcze mniej miejsca na tabelę niż na głównym ekranie Zaopatrzenia. */
+@media(max-width:430px){
+  .cart-modal .modal-body{padding:14px 10px 16px;}
+  .cart-action-btn{font-size:11.5px;padding:6px 10px;}
 }

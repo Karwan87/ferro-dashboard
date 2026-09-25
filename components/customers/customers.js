@@ -11,7 +11,9 @@ const ACTIVE_YEAR = 2026;
 
 /* Katalog kolumn możliwych do pokazania w raportach klienckich — analogicznie
    do components/sales/sales.js: każdy raport (CUSTOMER_VIEW_DEFS) wybiera
-   swój podzbiór i decyduje o widoczności na urządzeniach mobilnych. */
+   swój podzbiór i przypisuje jej "tier" (0/brak = zawsze widoczna, 1-5 =
+   odsłania się stopniowo w miarę poszerzania okna, patrz table.css:
+   .col-tier-N — kolejność zachowana z dawnego porządku mobile:true/false). */
 const COLUMN_DEFS = {
   orders:        { label:'Liczba zamówień' },
   unitsOrdered:  { label:'Zamówione sztuki' },
@@ -32,13 +34,13 @@ const CUSTOMER_VIEW_DEFS = {
     title:'Najbardziej dochodowi klienci',
     subtitle:'Pełne zestawienie, bez dodatkowych warunków',
     columns:[
-      {key:'orders',        mobile:true},
-      {key:'unitsOrdered',  mobile:true},
-      {key:'unitsReturned', mobile:false},
-      {key:'orderValue',    mobile:true},
-      {key:'margin',        mobile:true},
-      {key:'lostMargin',    mobile:false},
-      {key:'marginNet',     mobile:false},
+      {key:'orders'},
+      {key:'unitsOrdered'},
+      {key:'unitsReturned', tier:1},
+      {key:'orderValue'},
+      {key:'margin'},
+      {key:'lostMargin',    tier:2},
+      {key:'marginNet',     tier:3},
     ],
     defaultSort:{key:'orderValue', dir:'desc'},
   },
@@ -46,11 +48,11 @@ const CUSTOMER_VIEW_DEFS = {
     title:'Dochodowość netto klientów',
     subtitle:'Marża pomniejszona o utraconą marżę na zwrotach',
     columns:[
-      {key:'unitsOrdered',  mobile:false},
-      {key:'unitsReturned', mobile:false},
-      {key:'margin',        mobile:true},
-      {key:'returnedValue', mobile:true},
-      {key:'marginNet',     mobile:true},
+      {key:'unitsOrdered',  tier:1},
+      {key:'unitsReturned', tier:2},
+      {key:'margin'},
+      {key:'returnedValue'},
+      {key:'marginNet'},
     ],
     defaultSort:{key:'marginNet', dir:'desc'},
   },
@@ -58,11 +60,11 @@ const CUSTOMER_VIEW_DEFS = {
     title:'Najlepsi klienci',
     subtitle:'Min. 5 zamówień w roku, zwroty do 10%',
     columns:[
-      {key:'orders',        mobile:false},
-      {key:'unitsOrdered',  mobile:false},
-      {key:'unitsReturned', mobile:false},
-      {key:'margin',        mobile:true},
-      {key:'returnShare',   mobile:true},
+      {key:'orders',        tier:1},
+      {key:'unitsOrdered',  tier:2},
+      {key:'unitsReturned', tier:3},
+      {key:'margin'},
+      {key:'returnShare'},
     ],
     minOrders:5,
     maxReturnSharePct:10,
@@ -72,14 +74,14 @@ const CUSTOMER_VIEW_DEFS = {
     title:'Klienci z najwyższym wskaźnikiem zwrotów',
     subtitle:'Min. 5 zamówień w roku',
     columns:[
-      {key:'orders',        mobile:false},
-      {key:'unitsOrdered',  mobile:false},
-      {key:'unitsReturned', mobile:false},
-      {key:'margin',        mobile:true},
-      {key:'returnedValue', mobile:true},
-      {key:'returnPercent', mobile:true},
-      {key:'lostMargin',    mobile:false},
-      {key:'marginNet',     mobile:false},
+      {key:'orders',        tier:1},
+      {key:'unitsOrdered',  tier:2},
+      {key:'unitsReturned', tier:3},
+      {key:'margin'},
+      {key:'returnedValue'},
+      {key:'returnPercent'},
+      {key:'lostMargin',    tier:4},
+      {key:'marginNet',     tier:5},
     ],
     minOrders:5,
     defaultSort:{key:'returnPercent', dir:'desc'},
@@ -88,12 +90,12 @@ const CUSTOMER_VIEW_DEFS = {
     title:'Najaktywniejsi klienci',
     subtitle:'Min. 5 zamówień w roku',
     columns:[
-      {key:'orders',        mobile:true},
-      {key:'unitsOrdered',  mobile:false},
-      {key:'unitsReturned', mobile:false},
-      {key:'margin',        mobile:true},
-      {key:'lostMargin',    mobile:false},
-      {key:'marginNet',     mobile:false},
+      {key:'orders'},
+      {key:'unitsOrdered',  tier:1},
+      {key:'unitsReturned', tier:2},
+      {key:'margin'},
+      {key:'lostMargin',    tier:3},
+      {key:'marginNet',     tier:4},
     ],
     minOrders:5,
     defaultSort:{key:'orders', dir:'desc'},
@@ -179,7 +181,7 @@ function renderCustomersTableHead(){
   const def = CUSTOMER_VIEW_DEFS[currentView];
   const row = document.getElementById('custTableHeadRow');
   row.innerHTML = `<th class="rank sticky-col"></th><th class="identity-col sticky-col">Klient</th>` + def.columns.map(c=>{
-    const cls = c.mobile ? '' : ' mobile-hide';
+    const cls = c.tier ? ` col-tier-${c.tier}` : '';
     return `<th data-key="${c.key}" class="${cls}" onclick="setCustomersSort('${c.key}')">${COLUMN_DEFS[c.key].label} <span class="arrow"></span></th>`;
   }).join('');
 }
@@ -221,7 +223,7 @@ function renderCustomersTable(){
   }
 
   tbody.innerHTML = rows.map((r, i)=>{
-    const cells = def.columns.map(c=>`<td class="num${c.mobile ? '' : ' mobile-hide'}">${cellHtml(c.key, r)}</td>`).join('');
+    const cells = def.columns.map(c=>`<td class="num${c.tier ? ' col-tier-'+c.tier : ''}">${cellHtml(c.key, r)}</td>`).join('');
     return `<tr onclick="openCustomerModal(${i})">
       <td class="rank sticky-col">${i + 1}</td>
       <td class="identity-col sticky-col">
@@ -232,9 +234,9 @@ function renderCustomersTable(){
   }).join('');
 }
 
-/* Modal ze wszystkimi kolumnami bieżącego raportu — na mobile część kolumn
-   jest ukryta w tabeli (mobile-hide), więc to jedyny sposób, by zobaczyć
-   pełny komplet danych klienta bez przełączania się na desktop. */
+/* Modal ze wszystkimi kolumnami bieżącego raportu — na wąskim ekranie część
+   kolumn jest w tabeli ukryta (patrz .col-tier-N), więc to jedyny sposób, by
+   zobaczyć pełny komplet danych klienta bez poszerzania okna. */
 export function openCustomerModal(index){
   const def = CUSTOMER_VIEW_DEFS[currentView];
   const r = currentRows[index];

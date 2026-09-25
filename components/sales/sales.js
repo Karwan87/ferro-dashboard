@@ -4,8 +4,11 @@ import { fmtPLN, imgUrl, PLACEHOLDER } from '../../core/format.js';
 import { matchesProductQuery } from '../../core/search.js';
 
 /* Katalog kolumn możliwych do pokazania w tabeli — każdy widok (VIEW_DEFS)
-   wybiera swój podzbiór przez pole "columns" oraz decyduje, czy dana
-   kolumna ma być widoczna na urządzeniach mobilnych (mobile:true/false). */
+   wybiera swój podzbiór przez pole "columns" oraz przypisuje jej "tier"
+   (0/brak = zawsze widoczna, 1-5 = odsłania się stopniowo w miarę
+   poszerzania okna, patrz table.css: .col-tier-N — kolejność 1→5 to
+   kolejność, w jakiej dana kolumna wraca, zachowana z dawnego porządku
+   mobile:true/false). */
 const COLUMN_DEFS = {
   units:       { label:'Sztuki' },
   stan:        { label:'Stan magazynowy' },
@@ -22,20 +25,20 @@ const COLUMN_DEFS = {
 };
 
 const SALES_COLUMNS  = [
-  {key:'units',   mobile:true},
-  {key:'stan',    mobile:false},
-  {key:'value',   mobile:false},
-  {key:'margin',  mobile:false},
-  {key:'returns', mobile:true},
+  {key:'units'},
+  {key:'stan',    tier:1},
+  {key:'value',   tier:2},
+  {key:'margin',  tier:3},
+  {key:'returns'},
 ];
 
 const TREND_COLUMNS = [
-  {key:'units',   mobile:true},
-  {key:'stan',    mobile:false},
-  {key:'value',   mobile:false},
-  {key:'margin',  mobile:false},
-  {key:'flags',   mobile:true},
-  {key:'returns', mobile:true},
+  {key:'units'},
+  {key:'stan',    tier:1},
+  {key:'value',   tier:2},
+  {key:'margin',  tier:3},
+  {key:'flags'},
+  {key:'returns'},
 ];
 
 const VIEW_DEFS = {
@@ -45,34 +48,34 @@ const VIEW_DEFS = {
   best28: {title:'Najlepsza sprzedaż · 28 dni', period:'s28+', mode:'best', columns:SALES_COLUMNS},
   best30: {title:'Najlepsza sprzedaż · 30 dni', period:'s30',  mode:'best', columns:SALES_COLUMNS},
   noSale: {title:'Brak sprzedaży · 30 dni',     period:'s30',  mode:'noSale', columns:[
-    {key:'units',     mobile:false},
-    {key:'stan',      mobile:true},
-    {key:'capital',   mobile:true},
-    {key:'potential', mobile:true},
+    {key:'units',     tier:1},
+    {key:'stan'},
+    {key:'capital'},
+    {key:'potential'},
   ]},
   lowSale:{title:'Niska sprzedaż · 30 dni',     period:'s30',  mode:'lowSale', columns:[
-    {key:'units',     mobile:true},
-    {key:'stan',      mobile:true},
-    {key:'value',     mobile:false},
-    {key:'margin',    mobile:false},
-    {key:'returns',   mobile:false},
-    {key:'capital',   mobile:true},
-    {key:'potential', mobile:true},
+    {key:'units'},
+    {key:'stan'},
+    {key:'value',     tier:1},
+    {key:'margin',    tier:2},
+    {key:'returns',   tier:3},
+    {key:'capital'},
+    {key:'potential'},
   ]},
   highRet:{title:'Największe zwroty · 30 dni',  period:'s30',  mode:'highRet', columns:[
-    {key:'units',     mobile:true},
-    {key:'retUnits',  mobile:true},
-    {key:'stan',      mobile:false},
-    {key:'value',     mobile:false},
-    {key:'margin',    mobile:false},
-    {key:'returns',   mobile:true},
+    {key:'units'},
+    {key:'retUnits'},
+    {key:'stan',      tier:1},
+    {key:'value',     tier:2},
+    {key:'margin',    tier:3},
+    {key:'returns'},
   ]},
   margin: {title:'Ranking rentowności', mode:'margin', columns:[
-    {key:'cena',       mobile:false},
-    {key:'cenaZakupu', mobile:false},
-    {key:'margin',     mobile:true},
-    {key:'marginPct',  mobile:true},
-    {key:'stan',       mobile:false},
+    {key:'cena',       tier:1},
+    {key:'cenaZakupu', tier:2},
+    {key:'margin'},
+    {key:'marginPct'},
+    {key:'stan',       tier:3},
   ]},
   trendUp:   {title:'Trend sprzedaży · rosnące',   period:'s30', mode:'trend', trendDirection:'up',   columns:TREND_COLUMNS},
   trendFlat: {title:'Trend sprzedaży · stagnacja', period:'s30', mode:'trend', trendDirection:'flat', columns:TREND_COLUMNS},
@@ -320,7 +323,7 @@ function renderTableHead(){
   const def = VIEW_DEFS[currentView];
   const row = document.getElementById('tableHeadRow');
   row.innerHTML = `<th class="rank sticky-col"></th><th class="identity-col sticky-col">Produkt</th>` + def.columns.map(c=>{
-    const cls = c.mobile ? '' : ' mobile-hide';
+    const cls = c.tier ? ` col-tier-${c.tier}` : '';
     return `<th data-key="${c.key}" class="${cls}" onclick="setSort('${c.key}')">${COLUMN_DEFS[c.key].label} <span class="arrow"></span></th>`;
   }).join('');
 }
@@ -367,7 +370,7 @@ function rowHtml(r, i, def){
   const bars = [p.s7,p.s14,p.s21,p.s28];
   const maxBar = Math.max(...bars,1);
   const swatch = bars.map(v=>`<i style="height:${Math.max(3,(v/maxBar*16))}px"></i>`).join('');
-  const cells = def.columns.map(c=>`<td class="num${c.mobile?'':' mobile-hide'}">${cellHtml(c.key, r)}</td>`).join('');
+  const cells = def.columns.map(c=>`<td class="num${c.tier ? ' col-tier-'+c.tier : ''}">${cellHtml(c.key, r)}</td>`).join('');
   const extended = def.mode==='best' || def.mode==='margin' || def.mode==='trend';
   return `<tr onclick="openModal(${p.id}, ${extended})">
       <td class="rank sticky-col">${i+1}</td>

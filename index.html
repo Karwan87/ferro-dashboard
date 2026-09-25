@@ -1022,7 +1022,7 @@
   </div>
 </div>
 
-<!-- KOSZYK ZAMÓWIEŃ (ETAP 1 — stan lokalny, patrz core/reorderCart.js) -->
+<!-- KOSZYK ZAMÓWIEŃ (stan wspólny w D1, patrz core/reorderCart.js) -->
 <div class="overlay" id="overlayCart" onclick="if(event.target===this)closeOrderCart()">
   <div class="modal cart-modal">
     <button class="modal-close" onclick="closeOrderCart()">✕</button>
@@ -1031,6 +1031,7 @@
 
       <div class="finance-filters pill-row" id="cartTabs">
         <button class="pill active" data-key="listed" onclick="setCartTab('listed')">Koszyk (<span id="cartTabListedCount">0</span>)</button>
+        <button class="pill" data-key="pending" onclick="setCartTab('pending')">Do zatwierdzenia (<span id="cartTabPendingCount">0</span>)</button>
         <button class="pill" data-key="ordered" onclick="setCartTab('ordered')">Zamówione (<span id="cartTabOrderedCount">0</span>)</button>
       </div>
 
@@ -1051,14 +1052,32 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th><input type="checkbox" id="cartListedSelectAllVisible" onchange="toggleCartSelectAllVisible('listed', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th>Dostawca</th><th>Kod</th><th>Ilość</th><th>Wartość</th><th></th>
+              <th><input type="checkbox" id="cartListedSelectAllVisible" onchange="toggleCartSelectAllVisible('listed', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th class="col-tier-1">Dostawca</th><th class="col-tier-3">Kod</th><th>Ilość</th><th>Wartość</th><th></th>
             </tr></thead>
             <tbody id="cartListedBody"></tbody>
           </table>
         </div>
         <div class="cart-summary-row">
           <span id="cartListedTotal"></span>
-          <button class="cart-action-btn cart-action-btn-primary" onclick="sendCartOrder()">Zamów zaznaczone</button>
+          <button class="cart-action-btn cart-action-btn-primary" onclick="sendToPending()">Do zatwierdzenia</button>
+        </div>
+      </div>
+
+      <div id="cartPendingView" style="display:none">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th><input type="checkbox" id="cartPendingSelectAllVisible" onchange="toggleCartSelectAllVisible('pending', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th class="col-tier-1">Dostawca</th><th class="col-tier-3">Kod</th><th>Ilość</th><th>Wartość</th><th class="col-tier-2">Zgłosił</th><th title="Zatwierdzone">CFM</th><th></th>
+            </tr></thead>
+            <tbody id="cartPendingBody"></tbody>
+          </table>
+        </div>
+        <div class="cart-summary-row">
+          <span id="cartPendingTotal"></span>
+          <div class="cart-summary-actions">
+            <button class="cart-action-btn" id="cartConfirmBtn" onclick="confirmPendingSelected()" disabled>Zatwierdź ilości</button>
+            <button class="cart-action-btn cart-action-btn-primary" id="cartSendOrderBtn" onclick="sendCartOrder()" disabled>Zamów zaznaczone</button>
+          </div>
         </div>
         <p class="finance-range-label">Treść zamówienia (osobny blok per dostawca) pojawia się automatycznie po zaznaczeniu checkboxów powyżej:</p>
         <textarea id="cartMessageOutput" class="cart-message-output" readonly placeholder="Zaznacz produkty w tabeli powyżej, żeby zobaczyć tu gotową treść do skopiowania…"></textarea>
@@ -1069,7 +1088,7 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th><input type="checkbox" id="cartOrderedSelectAllVisible" onchange="toggleCartSelectAllVisible('ordered', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th>Dostawca</th><th>Kod</th><th>Zamówiono</th><th>Data</th><th>Dostarczono</th><th>Status</th>
+              <th><input type="checkbox" id="cartOrderedSelectAllVisible" onchange="toggleCartSelectAllVisible('ordered', this.checked)" title="Zaznacz widoczne pozycje"></th><th></th><th>Produkt</th><th class="col-tier-1">Dostawca</th><th class="col-tier-3">Kod</th><th>Zamówiono</th><th class="col-tier-2">Data</th><th>Dostarczono</th><th>Status</th><th></th>
             </tr></thead>
             <tbody id="cartOrderedBody"></tbody>
           </table>

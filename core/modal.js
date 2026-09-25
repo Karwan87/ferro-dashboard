@@ -97,9 +97,11 @@ function renderModalCartAction(){
   const status = getProductCartStatus(id);
   const badge = status === 'listed'
     ? `<span class="modal-cart-badge">w koszyku: ${getOrderState(id).listedQty} szt.</span>`
-    : status === 'ordered'
-      ? `<span class="modal-cart-badge">w zamówieniu</span>`
-      : '';
+    : status === 'pending'
+      ? `<span class="modal-cart-badge">do zatwierdzenia</span>`
+      : status === 'ordered'
+        ? `<span class="modal-cart-badge">w zamówieniu</span>`
+        : '';
   el.innerHTML = `${badge}<button class="modal-cart-btn" onclick="toggleModalCartQty()">🛒 Zamów</button>`;
 }
 

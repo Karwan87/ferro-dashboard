@@ -31,7 +31,7 @@ export async function loadCartState(){
 }
 
 function record(id){
-  return state[id] || { listedQty: 0, orderedQty: 0, orderedAt: null, deliveredDetectedAt: null };
+  return state[id] || { listedQty: 0, pendingQty: 0, pendingBy: null, pendingConfirmed: false, orderedQty: 0, orderedAt: null, deliveredDetectedAt: null };
 }
 
 export function getOrderState(id){
@@ -52,6 +52,15 @@ export async function removeFromCart(id){
   catch(e){ /* jw. */ }
 }
 
+/* Ustawienie ilości WPROST (nie dodanie do istniejącej) — licznik +/- w
+   tabeli koszyka potrzebuje umieć też ZMNIEJSZYĆ, czego addToCart (zawsze
+   dokłada) nie robi. qty<=0 usuwa pozycję z koszyka (patrz Worker: /cart/set-qty). */
+export async function setCartQty(id, qty){
+  const safeQty = Math.max(0, Math.round(qty) || 0);
+  try{ setState(await authedFetchJson(`${CART_URL}/set-qty`, { method: 'POST', body: JSON.stringify({ productId: id, qty: safeQty }) })); }
+  catch(e){ /* jw. */ }
+}
+
 export function getCartItems(){
   return Object.entries(state)
     .filter(([, r]) => r.listedQty > 0)
@@ -62,11 +71,64 @@ export function getCartCount(){
   return getCartItems().length;
 }
 
-/* Koszyk -> "Zamówione". Jeśli produkt ma już otwarte (niedostarczone)
-   zamówienie z wcześniejszej tury, ilości SUMUJĄ SIĘ, a data zamówienia
-   zostaje ta najwcześniejsza (patrz Worker: /cart/mark-ordered). */
+/* Koszyk -> "Do zatwierdzenia". Ilości z listedQty PRZENOSZĄ SIĘ do
+   pendingQty (sumując się z ewentualną wcześniejszą turą), a pendingBy
+   (login zgłaszającego) zostaje ten PIERWSZY, COALESCE — patrz Worker:
+   /cart/mark-pending. */
+export async function markPending(ids){
+  try{ setState(await authedFetchJson(`${CART_URL}/mark-pending`, { method: 'POST', body: JSON.stringify({ productIds: ids }) })); }
+  catch(e){ /* patrz loadCartState */ }
+}
+
+/* Ustawienie ILOŚCI DO ZATWIERDZENIA wprost (licznik +/- w tabeli "Do
+   zatwierdzenia") — analogicznie do setCartQty, ale na pendingQty (patrz
+   Worker: /cart/set-pending-qty). qty<=0 usuwa pozycję z tego etapu. */
+export async function setPendingQty(id, qty){
+  const safeQty = Math.max(0, Math.round(qty) || 0);
+  try{ setState(await authedFetchJson(`${CART_URL}/set-pending-qty`, { method: 'POST', body: JSON.stringify({ productId: id, qty: safeQty }) })); }
+  catch(e){ /* jw. */ }
+}
+
+export function getPendingItems(){
+  return Object.entries(state)
+    .filter(([, r]) => r.pendingQty > 0)
+    .map(([id, r]) => ({ id: Number(id), qty: r.pendingQty, pendingBy: r.pendingBy, confirmed: r.pendingConfirmed }));
+}
+
+/* Usunięcie z "Do zatwierdzenia" (✕) — bez cofania do Koszyka, zwykłe
+   skasowanie pozycji z tego etapu (patrz Worker: /cart/remove-pending). */
+export async function removeFromPending(id){
+  try{ setState(await authedFetchJson(`${CART_URL}/remove-pending`, { method: 'POST', body: JSON.stringify({ productId: id }) })); }
+  catch(e){ /* jw. */ }
+}
+
+/* Zatwierdzenie (confirmed=true, domyślnie) LUB cofnięcie zatwierdzenia
+   (confirmed=false) FINALNEJ ilości w "Do zatwierdzenia". Dopóki zatwierdzone:
+   setPendingQty pozwala ją już tylko zmniejszać (patrz Worker:
+   handleCartSetPendingQty), a markOrdered wymaga zatwierdzenia, żeby w
+   ogóle przenieść pozycję do "Zamówione" (patrz Worker: /cart/confirm-pending).
+   Cofnięcie to jedyny sposób odblokowania zwiększania ilości z powrotem. */
+export async function confirmPending(ids, confirmed = true){
+  try{ setState(await authedFetchJson(`${CART_URL}/confirm-pending`, { method: 'POST', body: JSON.stringify({ productIds: ids, confirmed }) })); }
+  catch(e){ /* jw. */ }
+}
+
+/* "Do zatwierdzenia" -> "Zamówione" (źródłem jest TERAZ pendingQty, nie
+   listedQty — patrz Worker: handleCartMarkOrdered). Jeśli produkt ma już
+   otwarte (niedostarczone) zamówienie z wcześniejszej tury, ilości SUMUJĄ
+   SIĘ, a data zamówienia zostaje ta najwcześniejsza (patrz Worker:
+   /cart/mark-ordered). */
 export async function markOrdered(ids){
   try{ setState(await authedFetchJson(`${CART_URL}/mark-ordered`, { method: 'POST', body: JSON.stringify({ productIds: ids }) })); }
+  catch(e){ /* jw. */ }
+}
+
+/* Zmniejszenie ILOŚCI ZAMÓWIONEJ o 1 — WYŁĄCZNIE w dół (korekta pomyłki po
+   wysyłce do dostawcy). Zwiększanie idzie przez koszyk (Zamów -> Zamów
+   zaznaczone), nie tędy — stąd brak odpowiednika "increase" (patrz Worker:
+   /cart/decrease-ordered). */
+export async function decreaseOrderedQty(id){
+  try{ setState(await authedFetchJson(`${CART_URL}/decrease-ordered`, { method: 'POST', body: JSON.stringify({ productId: id }) })); }
   catch(e){ /* jw. */ }
 }
 
@@ -87,10 +149,14 @@ export async function removeOrderRecords(ids){
 
 /* Status widoczny w kolumnie "Akcje"/"Status" głównej tabeli — bez sprawdzania
    dostaw (to osobne, async, patrz getDeliveryProgress), więc szybkie i
-   synchroniczne do renderu tabeli ze wszystkimi produktami naraz. */
+   synchroniczne do renderu tabeli ze wszystkimi produktami naraz.
+   Kolejność ma znaczenie: listed > pending > ordered > none — produkt
+   może mieć jednocześnie np. ordered (z poprzedniej tury) i listed (nowo
+   dodany), a wtedy liczy się ten "najwcześniejszy" etap w przepływie. */
 export function getProductCartStatus(id){
   const r = record(id);
   if(r.listedQty > 0) return 'listed';
+  if(r.pendingQty > 0) return 'pending';
   if(r.orderedQty > 0) return 'ordered';
   return 'none';
 }

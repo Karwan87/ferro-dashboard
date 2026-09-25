@@ -8,10 +8,15 @@
 /* Szukajka nad tabelami z listą produktów — jeden wygląd wszędzie (sprzedaż,
    zwroty, alerty, do zamówienia, stany, dostawcy). Samo dopasowanie liczone
    w core/search.js (ID ściśle, nazwa częściowo). */
-.table-search-row{margin-bottom:10px;}
+/* Rząd nad tabelą (szukajka + filtry) — flex+gap zamiast domyślnego
+   "sklejania się" elementów inline-block; działa tak samo na desktopie jak
+   i na mobilce (tam elementy się zawijają, ale każdy dostaje ten sam,
+   równy odstęp od sąsiadów zamiast stykać się krawędziami). */
+.table-search-row{margin-bottom:10px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
 .table-search{
   font-family:'Inter',sans-serif;font-size:13.5px;padding:8px 12px;border:1px solid #DCD3C0;
   border-radius:6px;background:#fff;color:var(--ink);width:100%;max-width:280px;
+  flex:1 1 200px;
 }
 .table-search::placeholder{color:#ADA694;}
 
@@ -75,16 +80,17 @@ tbody tr:hover{background:#F2EBDA;}
 tbody tr:last-child{border-bottom:none;}
 td{padding:16px 14px;vertical-align:middle;}
 td.num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;}
-td.rank{color:#B5AC98;font-family:'IBM Plex Mono',monospace;font-size:12px;width:32px;min-width:32px;max-width:32px;}
-th.rank{width:32px;min-width:32px;max-width:32px;}
-
-/* Kolumna rankingu i kolumna "tożsamości" wiersza (produkt / klient) zostają
-   przypięte do lewej krawędzi, gdy tabela przewija się w poziomie — bez tego
-   liczby po prawej tracą kontekst, do czego się odnoszą. */
+/* Kolumna "tożsamości" wiersza (produkt / klient) zostaje przypięta do lewej
+   krawędzi, gdy tabela przewija się w poziomie — bez tego liczby po prawej
+   tracą kontekst, do czego się odnoszą. Numer porządkowy (.rank) jest
+   ukryty NA KAŻDEJ szerokości (nie tylko mobilnej) — niczego nie sortuje ani
+   nie filtruje, a zwalnia 32px, które i tak zawsze lepiej wykorzysta sama
+   tabela; stąd "Produkt" siedzi od razu na left:0, bez wyjątków dla węższych
+   ekranów. */
+.rank{display:none;}
 .sticky-col{position:sticky;background:var(--paper);z-index:2;}
 th.sticky-col{z-index:3;}
-.rank.sticky-col{left:0;}
-.identity-col.sticky-col{left:32px;box-shadow:2px 0 6px rgba(0,0,0,.08);}
+.identity-col.sticky-col{left:0;box-shadow:2px 0 6px rgba(0,0,0,.08);}
 tbody tr:hover td.sticky-col{background:#F2EBDA;}
 
 .empty-state{color:var(--text-muted);text-align:center;padding:32px 16px;cursor:default;}
@@ -100,15 +106,69 @@ tbody tr:hover td.sticky-col{background:#F2EBDA;}
 .swatch{display:flex;gap:2px;align-items:flex-end;height:16px;margin-top:4px;}
 .swatch i{width:5px;background:var(--gold);border-radius:1px;opacity:.85;display:block;}
 
+/* Kompaktowy "Produkt" na CAŁYM zakresie poniżej ~1000px, nie tylko na
+   mobilce — bez tego pełna wersja (miniatura 60px, wykres słupkowy,
+   min-width:250px) sama zjadała tyle miejsca, że nawet same kolumny "zawsze
+   widoczne" (Status/Akcje) nie mieściły się już przy umiarkowanych
+   szerokościach okna, zanim jeszcze doszła jakakolwiek warstwa .col-tier-N.
+   Wiersz ID/dostawcy (.prod-id) zostaje jednak widoczny w całym tym zakresie
+   — to osobna linijka POD nazwą (pionowo), więc nie poszerza kolumny, tylko
+   dokłada wysokość wiersza; znika dopiero na prawdziwej mobilce (≤560px),
+   gdzie liczy się każdy piksel wysokości ekranu też. Kolejne, węższe poziomy
+   (560/430px) dokręcają dalej — kolejność w pliku ma znaczenie, węższe muszą
+   być NIŻEJ. */
+@media(max-width:999px){
+  .prod-cell{gap:8px;min-width:0;max-width:150px;}
+  .prod-cell > div{min-width:0;}
+  .prod-name{font-size:12.5px;}
+  .prod-thumb{width:40px;height:40px;}
+  .swatch{display:none;}
+}
+
 @media(max-width:560px){
-  .mobile-hide{display:none;}
   td, thead th{padding:8px 5px;}
   thead th{white-space:normal;font-size:9px;}
   td.num{font-size:11.5px;}
-  .prod-cell{gap:6px;min-width:0;max-width:105px;}
-  .prod-cell > div{min-width:0;}
+  .prod-cell{gap:6px;max-width:105px;}
   .prod-name{font-size:12px;}
   .prod-id{display:none;}
   .prod-thumb{width:34px;height:34px;}
-  .swatch{display:none;}
 }
+
+/* Dodatkowy, ciaśniejszy poziom dla wąskich telefonów (iPhone 16 i podobne,
+   ~390-430px) — nakłada się na powyższe (kolejność w pliku wygrywa przy
+   tych samych właściwościach). Cel: WSZYSTKIE kolumny listy produktów
+   mieszczą się bez przewijania w poziomie (pionowe przewijanie zostaje bez
+   zmian — to naturalne). */
+@media(max-width:430px){
+  table{font-size:10px;}
+  td, thead th{padding:5px 3px;}
+  thead th{font-size:7.5px;letter-spacing:.4px;}
+  td.num{font-size:10px;}
+  .prod-cell{gap:4px;max-width:78px;}
+  .prod-name{font-size:10.5px;line-height:1.2;}
+  .prod-thumb{width:26px;height:26px;border-radius:5px;}
+}
+
+/* Stopniowe odsłanianie kolumn — zamiast jednego progu "wszystko ukryte /
+   wszystko widoczne" (dawne .mobile-hide), każda z pięciu warstw odsłania
+   się przy kolejnym, szerszym oknie. KTÓRA kolumna dostaje który numer
+   warstwy ustala KAŻDY komponent osobno, wg własnej kolejności ważności
+   (patrz komentarze w reorder.js/cart.js/sales.js/customers.js) — same progi
+   szerokości (KIEDY dana warstwa się odsłania) są wspólne dla całej apki,
+   więc np. "warstwa 1" w Zaopatrzeniu i w Sprzedaży pojawia się przy tej
+   samej szerokości okna, nawet jeśli to fizycznie inna kolumna.
+
+   Progi PRZELICZONE na bazie realnych zrzutów z Zaopatrzenia (nie samego
+   szacunku) — tuż powyżej mobilnego progu (560px) kolumna "Produkt" skacze
+   z ~105px na min. 250px (osobna, wcześniejsza reguła .prod-cell), więc
+   pierwotne, ciasne progi (480-880) wypychały Status/Akcje poza ekran mimo
+   spełnionego warunku szerokości. Nowe progi startują dopiero tam, gdzie
+   zostało na to potwierdzone miejsce (861px z 4 warstwami już nie mieściło
+   się, 1131px z 5 warstwami mieściło się swobodnie). */
+.col-tier-1, .col-tier-2, .col-tier-3, .col-tier-4, .col-tier-5{display:none;}
+@media(min-width:700px){ .col-tier-1{display:table-cell;} }
+@media(min-width:820px){ .col-tier-2{display:table-cell;} }
+@media(min-width:940px){ .col-tier-3{display:table-cell;} }
+@media(min-width:1060px){ .col-tier-4{display:table-cell;} }
+@media(min-width:1180px){ .col-tier-5{display:table-cell;} }
