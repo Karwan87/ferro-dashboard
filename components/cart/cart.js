@@ -34,6 +34,25 @@ let lastProgressById = new Map();
 function productById(id){ return products.find(p => p.id === id); }
 function fmtDatePl(iso){ return iso ? new Date(iso).toLocaleDateString('pl-PL') : '—'; }
 
+/* Miniatura + nazwa w JEDNEJ komórce (.prod-cell, ten sam wzorzec co
+   components/reorder/reorder.js) — bez tego (dawniej: dwie osobne <td>,
+   miniatura i nazwa) kolumna "Produkt" nie miała żadnego max-width, więc przy
+   table-layout:auto jej szerokość zależała od tego, ile INNYCH kolumn akurat
+   konkurowało o miejsce w danej zakładce (Zamówione ma ich najwięcej —
+   Dostawca/Kod/Zamówiono/Data/Dostarczono/Status), przez co ta sama nazwa
+   zawijała się na więcej linii niż w Koszyku/"Do zatwierdzenia". .prod-cell
+   ma zdefiniowany max-width (patrz table.css) niezależnie od liczby kolumn
+   obok, więc teraz wygląda identycznie w każdej z trzech zakładek. */
+function prodCellHtml(it){
+  return `<div class="prod-cell">
+      <img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'">
+      <div>
+        <div class="prod-name">${it.name}</div>
+        <div class="prod-id">ID ${it.id}</div>
+      </div>
+    </div>`;
+}
+
 export function updateCartBadge(){
   const badge = document.getElementById('cartBadge');
   if(badge) badge.textContent = String(getCartCount());
@@ -315,7 +334,7 @@ function renderListedTable(items){
   const tbody = document.getElementById('cartListedBody');
   const totalEl = document.getElementById('cartListedTotal');
   if(items.length === 0){
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Koszyk jest pusty.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Koszyk jest pusty.</td></tr>`;
     totalEl.textContent = '';
     return;
   }
@@ -323,8 +342,7 @@ function renderListedTable(items){
     const value = it.qty * (it.cenaZakupu || 0);
     return `<tr onclick="openModal(${it.id})">
       <td onclick="event.stopPropagation()"><input type="checkbox" ${checkedIds.has(it.id) ? 'checked' : ''} onchange="toggleCartCheck(${it.id})"></td>
-      <td><img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'"></td>
-      <td><div class="prod-name">${it.name}</div><div class="prod-id">ID ${it.id}</div></td>
+      <td>${prodCellHtml(it)}</td>
       <td class="col-tier-1">${it.dostawca || '—'}</td>
       <td class="col-tier-3">${it.kod || '—'}</td>
       <td class="num" onclick="event.stopPropagation()">
@@ -348,7 +366,7 @@ function renderPendingTable(items){
   const tbody = document.getElementById('cartPendingBody');
   const totalEl = document.getElementById('cartPendingTotal');
   if(items.length === 0){
-    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Brak produktów do zatwierdzenia.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Brak produktów do zatwierdzenia.</td></tr>`;
     totalEl.textContent = '';
     return;
   }
@@ -369,8 +387,7 @@ function renderPendingTable(items){
         </div>`;
     return `<tr onclick="openModal(${it.id})">
       <td onclick="event.stopPropagation()"><input type="checkbox" ${checkedIds.has(it.id) ? 'checked' : ''} onchange="toggleCartCheck(${it.id})"></td>
-      <td><img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'"></td>
-      <td><div class="prod-name">${it.name}</div><div class="prod-id">ID ${it.id}</div></td>
+      <td>${prodCellHtml(it)}</td>
       <td class="col-tier-1">${it.dostawca || '—'}</td>
       <td class="col-tier-3">${it.kod || '—'}</td>
       <td class="num" onclick="event.stopPropagation()">${qtyStepper}</td>
@@ -389,7 +406,7 @@ function renderPendingTable(items){
 function renderOrderedTable(items){
   const tbody = document.getElementById('cartOrderedBody');
   if(items.length === 0){
-    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Brak zamówionych produktów.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Brak zamówionych produktów.</td></tr>`;
     return;
   }
   tbody.innerHTML = items.map(it => {
@@ -398,8 +415,7 @@ function renderOrderedTable(items){
     const isComplete = p ? p.isComplete : false;
     return `<tr onclick="openModal(${it.id})">
       <td onclick="event.stopPropagation()"><input type="checkbox" ${checkedIds.has(it.id) ? 'checked' : ''} onchange="toggleCartCheck(${it.id})"></td>
-      <td><img class="prod-thumb" src="${imgUrl(it.img) || PLACEHOLDER}" referrerpolicy="no-referrer" onerror="this.src='${PLACEHOLDER}'"></td>
-      <td><div class="prod-name">${it.name}</div><div class="prod-id">ID ${it.id}</div></td>
+      <td>${prodCellHtml(it)}</td>
       <td class="col-tier-1">${it.dostawca || '—'}</td>
       <td class="col-tier-3">${it.kod || '—'}</td>
       <td class="num" onclick="event.stopPropagation()">
