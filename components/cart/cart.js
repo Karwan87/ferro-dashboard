@@ -19,6 +19,10 @@ let selectedSuppliers = new Set();
 let supplierPanelOpen = false;
 let selectedKods = new Set();
 let kodPanelOpen = false;
+// Filtr CFM — TYLKO w "Do zatwierdzenia" (pozostałe zakładki nie mają statusu
+// zatwierdzenia), stąd stałe (nie z danych, jak dostawca/kod) dwie opcje.
+let selectedConfirmStatuses = new Set();
+let confirmPanelOpen = false;
 let checkedIds = new Set();
 // Id-y aktualnie WIDOCZNYCH wierszy (po filtrze dostawcy) w każdej zakładce —
 // osobno od checkedIds, żeby "zaznacz widoczne pozycje" dotykało tylko tego,
@@ -64,6 +68,8 @@ export function openOrderCart(){
   supplierPanelOpen = false;
   selectedKods = new Set();
   kodPanelOpen = false;
+  selectedConfirmStatuses = new Set();
+  confirmPanelOpen = false;
   checkedIds = new Set();
   setCartTabUI('listed');
   document.getElementById('overlayCart').classList.add('active');
@@ -87,6 +93,12 @@ function setCartTabUI(tab){
   document.getElementById('cartListedView').style.display = tab === 'listed' ? '' : 'none';
   document.getElementById('cartPendingView').style.display = tab === 'pending' ? '' : 'none';
   document.getElementById('cartOrderedView').style.display = tab === 'ordered' ? '' : 'none';
+  // Filtr CFM ma sens TYLKO w "Do zatwierdzenia" — w pozostałych zakładkach
+  // ukryty (ale wybór zostaje zapamiętany, patrz brak resetu w setCartTab).
+  const confirmLabel = document.getElementById('cartConfirmFilterLabel');
+  const confirmWrap = document.getElementById('cartConfirmFilterWrap');
+  if(confirmLabel) confirmLabel.style.display = tab === 'pending' ? '' : 'none';
+  if(confirmWrap) confirmWrap.style.display = tab === 'pending' ? '' : 'none';
 }
 
 /* Wielowybór dostawców "po excelowemu" — ten sam wzorzec co w components/reorder/reorder.js. */
@@ -199,6 +211,65 @@ document.addEventListener('click', e => {
   }
 });
 
+/* Filtr CFM (zatwierdzone / niezatwierdzone) w "Do zatwierdzenia" — ten sam
+   wzorzec wielowyboru co dostawca/kod (AND-uje się z nimi), ale ze STAŁYMI
+   dwiema opcjami zamiast listy wyliczonej z danych — zaznaczenie OBU działa
+   jak brak filtra (pokazuje wszystko), zgodnie z resztą filtrów "po
+   excelowemu". */
+const CONFIRM_FILTER_OPTIONS = [
+  { key: 'confirmed', label: 'Zatwierdzone' },
+  { key: 'unconfirmed', label: 'Niezatwierdzone' },
+];
+
+export function toggleCartConfirmPanel(){
+  confirmPanelOpen = !confirmPanelOpen;
+  renderCartTabs();
+}
+
+export function toggleCartConfirmStatus(key){
+  if(selectedConfirmStatuses.has(key)) selectedConfirmStatuses.delete(key); else selectedConfirmStatuses.add(key);
+  renderCartTabs();
+}
+
+export function selectAllCartConfirmStatuses(){
+  selectedConfirmStatuses = new Set(CONFIRM_FILTER_OPTIONS.map(o => o.key));
+  renderCartTabs();
+}
+
+export function clearCartConfirmStatuses(){
+  selectedConfirmStatuses = new Set();
+  renderCartTabs();
+}
+
+function renderConfirmPanel(){
+  const panel = document.getElementById('cartConfirmFilterPanel');
+  const btn = document.querySelector('#cartConfirmFilterWrap .ms-filter-btn');
+  if(!panel || !btn) return;
+  panel.classList.toggle('open', confirmPanelOpen);
+  if(confirmPanelOpen){
+    panel.innerHTML = `
+      <div class="ms-filter-actions">
+        <button type="button" onclick="selectAllCartConfirmStatuses()">Zaznacz wszystko</button>
+        <button type="button" onclick="clearCartConfirmStatuses()">Wyczyść</button>
+      </div>
+      ${CONFIRM_FILTER_OPTIONS.map(o => `
+        <label class="ms-filter-option">
+          <input type="checkbox" ${selectedConfirmStatuses.has(o.key) ? 'checked' : ''} onchange="toggleCartConfirmStatus('${o.key}')">
+          ${o.label}
+        </label>`).join('')}
+    `;
+  }
+  btn.textContent = (selectedConfirmStatuses.size === 0 ? 'Wszystkie' : `CFM (${selectedConfirmStatuses.size})`) + ' ▾';
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('cartConfirmFilterWrap');
+  if(confirmPanelOpen && wrap && !wrap.contains(e.target)){
+    confirmPanelOpen = false;
+    renderCartTabs();
+  }
+});
+
 export function toggleCartCheck(id){
   if(checkedIds.has(id)) checkedIds.delete(id); else checkedIds.add(id);
   renderCartTabs();
@@ -300,6 +371,7 @@ async function renderCartTabs(){
 
   renderSupplierPanel([...listedItems, ...pendingItems, ...orderedItems]);
   renderKodPanel([...listedItems, ...pendingItems, ...orderedItems]);
+  renderConfirmPanel();
 
   document.getElementById('cartTabListedCount').textContent = String(listedItems.length);
   document.getElementById('cartTabPendingCount').textContent = String(pendingItems.length);
@@ -308,12 +380,18 @@ async function renderCartTabs(){
   const passesFilters = it =>
     (selectedSuppliers.size === 0 || selectedSuppliers.has(it.dostawca)) &&
     (selectedKods.size === 0 || selectedKods.has(it.kod));
+  // CFM: zaznaczenie OBU opcji (albo żadnej) = brak filtrowania, tylko
+  // "Zatwierdzone" lub tylko "Niezatwierdzone" zawęża do jednego stanu.
+  const passesConfirmFilter = it =>
+    selectedConfirmStatuses.size === 0 ||
+    (selectedConfirmStatuses.has('confirmed') && it.confirmed) ||
+    (selectedConfirmStatuses.has('unconfirmed') && !it.confirmed);
   const listedFiltered = listedItems.filter(passesFilters);
   visibleListedIds = listedFiltered.map(it => it.id);
   renderListedTable(listedFiltered);
   syncSelectAllCheckbox('cartListedSelectAllVisible', listedFiltered);
 
-  const pendingFiltered = pendingItems.filter(passesFilters);
+  const pendingFiltered = pendingItems.filter(it => passesFilters(it) && passesConfirmFilter(it));
   visiblePendingIds = pendingFiltered.map(it => it.id);
   renderPendingTable(pendingFiltered);
   syncSelectAllCheckbox('cartPendingSelectAllVisible', pendingFiltered);

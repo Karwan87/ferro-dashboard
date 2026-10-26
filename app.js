@@ -5,7 +5,7 @@ import { openModal, closeModal } from './core/modal.js';
 import {
   openCategory, openView, setSort, applySalesSearch,
   toggleNkCollectionPanel, toggleNkCollection, selectAllNkCollections, clearNkCollections,
-  toggleSaleOnly,
+  toggleSaleOnly, toggleDoDomowieniaOnly,
 } from './components/sales/sales.js';
 import { openCustomersHub, openCustomersYear, openCustomersRolling, openCustomersView, setCustomersSort, openCustomerModal, closeCustomerModal } from './components/customers/customers.js';
 import { openReturnsHub, openReturnsMonths, openReturnsCurrentMonth, openReturnsPeriod, openReturnsProducts, openReturnsProductModal, applyReturnsProductsSearch, openReturnsSuppliers, openReturnsSupplierProducts, applyReturnsSupplierProductsSearch, openReturnsIndicator, openReturnsSettlement } from './components/returns/returns.js';
@@ -34,6 +34,7 @@ import {
   sendCartOrder, copyCartMessage, removeSelectedOrdered, cartRemoveOrderedRow, updateCartBadge,
   toggleCartSupplierPanel, toggleCartSupplier, selectAllCartSuppliers, clearCartSuppliers,
   toggleCartKodPanel, toggleCartKod, selectAllCartKod, clearCartKod,
+  toggleCartConfirmPanel, toggleCartConfirmStatus, selectAllCartConfirmStatuses, clearCartConfirmStatuses,
   toggleCartSelectAllVisible,
 } from './components/cart/cart.js';
 import { resolveConfirmModal } from './core/confirmModal.js';
@@ -53,6 +54,7 @@ window.toggleNkCollection = toggleNkCollection;
 window.selectAllNkCollections = selectAllNkCollections;
 window.clearNkCollections = clearNkCollections;
 window.toggleSaleOnly = toggleSaleOnly;
+window.toggleDoDomowieniaOnly = toggleDoDomowieniaOnly;
 window.openCustomersHub = openCustomersHub;
 window.openCustomersYear = openCustomersYear;
 window.openCustomersRolling = openCustomersRolling;
@@ -160,6 +162,10 @@ window.toggleCartKodPanel = toggleCartKodPanel;
 window.toggleCartKod = toggleCartKod;
 window.selectAllCartKod = selectAllCartKod;
 window.clearCartKod = clearCartKod;
+window.toggleCartConfirmPanel = toggleCartConfirmPanel;
+window.toggleCartConfirmStatus = toggleCartConfirmStatus;
+window.selectAllCartConfirmStatuses = selectAllCartConfirmStatuses;
+window.clearCartConfirmStatuses = clearCartConfirmStatuses;
 window.toggleCartSelectAllVisible = toggleCartSelectAllVisible;
 window.resolveConfirmModal = resolveConfirmModal;
 

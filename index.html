@@ -149,6 +149,7 @@
         <div class="ms-filter-panel" id="nkCollectionFilterPanel"></div>
       </div>
       <button type="button" class="ms-filter-btn" id="saleFilterBtn" onclick="toggleSaleOnly()">SALE</button>
+      <button type="button" class="ms-filter-btn" id="doDomowieniaFilterBtn" onclick="toggleDoDomowieniaOnly()">Do domówienia</button>
     </div>
     <div class="table-meta">
       <p id="tableInfo"></p>
@@ -1045,6 +1046,11 @@
         <div class="ms-filter" id="cartKodFilterWrap">
           <button type="button" class="ms-filter-btn" onclick="toggleCartKodPanel()">Wszystkie kody ▾</button>
           <div class="ms-filter-panel" id="cartKodFilterPanel"></div>
+        </div>
+        <label id="cartConfirmFilterLabel" style="display:none">CFM</label>
+        <div class="ms-filter" id="cartConfirmFilterWrap" style="display:none">
+          <button type="button" class="ms-filter-btn" onclick="toggleCartConfirmPanel()">Wszystkie ▾</button>
+          <div class="ms-filter-panel" id="cartConfirmFilterPanel"></div>
         </div>
       </div>
 

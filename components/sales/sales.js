@@ -125,6 +125,7 @@ let currentSearch = '';
 let selectedNkCollections = new Set();
 let nkPanelOpen = false;
 let saleOnly = false;
+let doDomowieniaOnly = false;
 
 export function openCategory(){
   navigateTo('screen-category', 'Dane sprzedażowe');
@@ -136,6 +137,7 @@ export function openView(key){
   selectedNkCollections = new Set();
   nkPanelOpen = false;
   saleOnly = false;
+  doDomowieniaOnly = false;
   document.getElementById('tableSearch').value = '';
   const def = VIEW_DEFS[key];
   if(def.mode==='highRet') sortState = {key:'retUnits', dir:'desc'};
@@ -149,6 +151,7 @@ export function openView(key){
   renderTableHead();
   renderNkCollectionPanel();
   updateSaleFilterButton();
+  updateDoDomowieniaFilterButton();
   renderTable();
 }
 
@@ -169,6 +172,21 @@ export function toggleSaleOnly(){
 
 function updateSaleFilterButton(){
   document.getElementById('saleFilterBtn')?.classList.toggle('active', saleOnly);
+}
+
+/* "Do domówienia" — ten sam wzorzec co SALE: przełącznik, nie osobny widok,
+   działa RAZEM z aktualnie otwartym widokiem (best7/14/.../30, margin,
+   trend, noSale, lowSale, highRet...) na KAŻDYM z nich, bo to dodatkowy
+   warunek w computeRows, nie zamiennik trybu. Flaga czyDoDomowienia liczona
+   już w core/data.js z arkusza (kolumna "Czy do domówienia?"). */
+export function toggleDoDomowieniaOnly(){
+  doDomowieniaOnly = !doDomowieniaOnly;
+  updateDoDomowieniaFilterButton();
+  renderTable();
+}
+
+function updateDoDomowieniaFilterButton(){
+  document.getElementById('doDomowieniaFilterBtn')?.classList.toggle('active', doDomowieniaOnly);
 }
 
 /* Filtr wielokrotnego wyboru kolekcji NK — działa RAZEM z aktywnym widokiem
@@ -289,6 +307,7 @@ function computeRows(){
   // po obu naraz, na dowolnym widoku.
   if(selectedNkCollections.size > 0) rows = rows.filter(r => (r.p.nkDates || []).some(d => selectedNkCollections.has(d)));
   if(saleOnly) rows = rows.filter(r => r.p.isSale);
+  if(doDomowieniaOnly) rows = rows.filter(r => r.p.czyDoDomowienia);
 
   rows.sort((a,b)=>{
     const dir = sortState.dir==='asc'?1:-1;
